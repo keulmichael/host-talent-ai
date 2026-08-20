@@ -1,22 +1,24 @@
 import Link from "next/link";
 import { prisma } from "../lib/db";
 import { detectSkills } from "../lib/extract";
+import { requireUser } from "../lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?:string; min?:string }> }) {
+  const user = await requireUser();
   const sp = await searchParams;
   const q = String(sp.q || "").trim();
   const min = Math.max(0, Math.min(100, Number(sp.min || 0) || 0));
   const candidates = q ? await prisma.candidate.findMany({
-    where: { OR: [
+    where: { organizationId:user.organizationId, OR: [
       { fullName: { contains: q, mode: "insensitive" } },
       { email: { contains: q, mode: "insensitive" } },
       { location: { contains: q, mode: "insensitive" } },
       { rawText: { contains: q, mode: "insensitive" } },
       { skills: { contains: q, mode: "insensitive" } }
     ] },
-    include: { matches: { include: { job:true }, orderBy: { score:"desc" } } },
+    include: { matches: { where:{organizationId:user.organizationId}, include: { job:true }, orderBy: { score:"desc" } } },
     take: 100
   }) : [];
   const filtered = candidates.filter((c) => !min || c.matches.some((m) => m.score >= min));
@@ -24,7 +26,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   return <>
     <div className="card">
       <div className="eyebrow">RECHERCHE VIVIER</div><h1>Retrouver un talent</h1>
-      <p className="muted">Recherche dans les CV, compétences, localisation, nom et e-mail. Le filtre de score permet de concentrer la revue sur les profils déjà comparés aux missions.</p>
+      <p className="muted">Recherche limitée au vivier de {user.organization.name} : CV, compétences, localisation, nom et e-mail.</p>
       <form className="searchForm" method="GET">
         <input name="q" defaultValue={q} placeholder="Ex. n8n, SAP, finance, Paris, TypeScript…" />
         <input name="min" type="number" min="0" max="100" defaultValue={min || ""} placeholder="Score min." />
