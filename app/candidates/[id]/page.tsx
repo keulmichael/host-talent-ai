@@ -22,7 +22,7 @@ export default async function CandidateDetail({params}:{params:Promise<{id:strin
   <div className="card" style={{marginTop:16}}><h2>Missions et suivi</h2>{candidate.matches.length===0?<p className="muted">Aucun matching calculé.</p>:candidate.matches.map(m=><div className="matchRow" key={m.id}>
    <div className="sectionHeader"><div><Link href={`/jobs/${m.job.id}`}><strong>{m.job.title}</strong></Link><div className="muted small">{m.job.clientName||"Client non renseigné"} · {band(m.score)} · {stageLabel(m.stage)}</div></div><div className="scoreCompact">{m.score}/100</div></div>
    <p><strong>Correspondances :</strong> {m.matched||"—"}</p><p><strong>À vérifier :</strong> {m.missing||"—"}</p><p className="muted">{m.explanation}</p>
-   {m.questions&&<><strong>Questions suggérées</strong><ul>{m.questions.split("\n").filter(Boolean).map(q=><li key={q}>{q}</li>)}</ul>}
+   {m.questions&&<><strong>Questions suggérées</strong><ul>{m.questions.split("\n").filter(Boolean).map(q=><li key={q}>{q}</li>)}</ul></>}
    <MatchActions id={m.id} stage={m.stage} recruiterNote={m.recruiterNote} nextAction={m.nextAction}/>
   </div>)}</div>
  </>;
