@@ -35,18 +35,24 @@ model Candidate {
 }
 
 model Match {
-  id          String    @id @default(cuid())
-  jobId       String
-  candidateId String
-  score       Int
-  matched     String
-  missing     String
-  questions   String
-  explanation String
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  jobId         String
+  candidateId   String
+  score         Int
+  matched       String
+  missing       String
+  questions     String
+  explanation   String
+  stage         String    @default("NEW")
+  recruiterNote String?
+  nextAction    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, candidateId])
+  @@index([stage])
+  @@index([score])
 }
