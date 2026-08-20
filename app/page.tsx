@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "./lib/db";
+import RecomputeAllButton from "./RecomputeAllButton";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,8 @@ export default async function Dashboard() {
   const strong = topMatches.filter((m) => m.score >= 70).length;
   return <>
     <div className="hero">
-      <div><div className="eyebrow">COPILOTE RECRUTEUR · V1.2</div><h1>Transformez votre vivier en base de talents intelligente.</h1><p className="muted">Analyse des CV, matching explicable, détection du contexte et préparation de la préqualification.</p></div>
-      <div className="actions"><Link className="btn" href="/jobs/new">Créer une mission</Link><Link className="btn secondary" href="/candidates/new">Importer un CV</Link></div>
+      <div><div className="eyebrow">COPILOTE RECRUTEUR · V1.3</div><h1>Transformez votre vivier en base de talents intelligente.</h1><p className="muted">Analyse des CV, matching explicable, détection du contexte et préparation de la préqualification.</p></div>
+      <div className="actions"><Link className="btn" href="/jobs/new">Créer une mission</Link><Link className="btn secondary" href="/candidates/new">Importer un CV</Link><RecomputeAllButton /></div>
     </div>
 
     <div className="grid">
