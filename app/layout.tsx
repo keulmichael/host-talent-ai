@@ -19,6 +19,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <Link href="/jobs/new">Nouvelle mission</Link>
       <Link href="/candidates/new">Importer CV</Link>
       {user.role === "ADMIN" && <Link href="/admin/users">Utilisateurs</Link>}
+      {user.role === "ADMIN" && <Link href="/admin/audit">Journal</Link>}
       <span className="userBadge">{user.fullName} · {user.organization.name}</span>
       <LogoutButton />
     </>}
