@@ -2,18 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "../../lib/db";
 import { stageLabel } from "../../lib/pipeline";
+import { requireUser } from "../../lib/auth";
 import MatchButton from "./MatchButton";
 import MatchActions from "../../MatchActions";
 
 export const dynamic = "force-dynamic";
-
 function band(score:number){return score>=85?"Très forte adéquation":score>=70?"Bonne adéquation":score>=55?"Adéquation partielle":score>=40?"Profil à approfondir":"Faible adéquation apparente"}
 
 export default async function JobPage({params}:{params:Promise<{id:string}>}){
- const{id}=await params;
+ const user=await requireUser(); const{id}=await params;
  const[job,candidateCount]=await Promise.all([
-  prisma.job.findUnique({where:{id},include:{matches:{include:{candidate:true},orderBy:{score:"desc"}}}}),
-  prisma.candidate.count()
+  prisma.job.findFirst({where:{id,organizationId:user.organizationId},include:{matches:{where:{organizationId:user.organizationId},include:{candidate:true},orderBy:{score:"desc"}}}}),
+  prisma.candidate.count({where:{organizationId:user.organizationId}})
  ]);
  if(!job)notFound();
  return <>
