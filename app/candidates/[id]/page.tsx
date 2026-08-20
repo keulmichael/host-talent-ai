@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "../../lib/db";
 import { detectNegatedSkills, detectSkills } from "../../lib/extract";
 import { stageLabel } from "../../lib/pipeline";
+import { requireUser } from "../../lib/auth";
 import MatchActions from "../../MatchActions";
 import DeleteCandidateButton from "../../DeleteCandidateButton";
 
@@ -10,8 +11,8 @@ export const dynamic = "force-dynamic";
 function band(score:number){return score>=85?"Très forte adéquation":score>=70?"Bonne adéquation":score>=55?"Adéquation partielle":score>=40?"Profil à approfondir":"Faible adéquation apparente"}
 
 export default async function CandidateDetail({params}:{params:Promise<{id:string}>}){
- const{id}=await params;
- const candidate=await prisma.candidate.findUnique({where:{id},include:{matches:{include:{job:true},orderBy:{score:"desc"}}}});if(!candidate)notFound();
+ const user=await requireUser(); const{id}=await params;
+ const candidate=await prisma.candidate.findFirst({where:{id,organizationId:user.organizationId},include:{matches:{where:{organizationId:user.organizationId},include:{job:true},orderBy:{score:"desc"}}}});if(!candidate)notFound();
  const skills=detectSkills(candidate.rawText),negated=detectNegatedSkills(candidate.rawText);
  return <>
   <div className="card"><div className="sectionHeader"><div><div className="eyebrow">CANDIDAT · DONNÉES PERSONNELLES</div><h1>{candidate.fullName}</h1><p className="muted">{candidate.location||"Localisation à confirmer"} · {candidate.email||"E-mail non détecté"} · {candidate.experienceYears?`${candidate.experienceYears} ans d'expérience détectés`:"Expérience à confirmer"}</p></div><div className="actions"><Link className="btn secondary" href={`/search?q=${encodeURIComponent(candidate.fullName)}`}>Retrouver dans le vivier</Link><DeleteCandidateButton id={candidate.id} name={candidate.fullName}/></div></div>
