@@ -1,3 +1,78 @@
 export const runtime = "nodejs";
 
-import{NextResponse}from"next/server";import{prisma}from"../../lib/db";async function text(f:File){const b=Buffer.from(await f.arrayBuffer());if(f.name.toLowerCase().endsWith(".docx")){const m=(await import("mammoth")).default;return(await m.extractRawText({buffer:b})).value}if(f.name.toLowerCase().endsWith(".pdf")){const p=(await import("pdf-parse")).default;return(await p(b)).text}return b.toString("utf8")}export async function POST(r:Request){try{const fd=await r.formData();const n=String(fd.get("fullName")||"").trim(),loc=String(fd.get("location")||"").trim();let raw=String(fd.get("rawText")||"").trim();const f=fd.get("file");if(f instanceof File&&f.size)raw=await text(f);if(!n||!raw)return NextResponse.json({error:"Nom et CV requis"},{status:400});const email=raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||null;const skills=["TypeScript","Next.js","React","Node.js","Python","Java","PHP","Salesforce","SAP","SEO","n8n","Power BI","SQL","AWS","Azure","Docker"].filter(s=>raw.toLowerCase().includes(s.toLowerCase()));return NextResponse.json(await prisma.candidate.create({data:{fullName:n,email,location:loc||null,rawText:raw,summary:raw.slice(0,420),skills:skills.join(", "),experienceYears:null}}))}catch{return NextResponse.json({error:"Impossible d'analyser le CV"},{status:500})}}
+import { NextResponse } from "next/server";
+import { prisma } from "../../lib/db";
+import { extractCandidate } from "../../lib/extract";
+import { explainMatch } from "../../lib/matching";
+
+async function fileToText(file: File) {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".docx")) {
+    const mammoth = (await import("mammoth")).default;
+    return (await mammoth.extractRawText({ buffer })).value;
+  }
+  if (name.endsWith(".pdf")) {
+    const pdf = (await import("pdf-parse")).default;
+    return (await pdf(buffer)).text;
+  }
+  return buffer.toString("utf8");
+}
+
+export async function POST(req: Request) {
+  try {
+    const fd = await req.formData();
+    const fullName = String(fd.get("fullName") || "").trim();
+    const location = String(fd.get("location") || "").trim();
+    let rawText = String(fd.get("rawText") || "").trim();
+    const file = fd.get("file");
+
+    if (file instanceof File && file.size) rawText = await fileToText(file);
+    if (!fullName || !rawText) {
+      return NextResponse.json({ error: "Nom et CV requis" }, { status: 400 });
+    }
+
+    const extracted = extractCandidate(rawText);
+    const candidate = await prisma.candidate.create({
+      data: {
+        fullName,
+        email: extracted.email || null,
+        location: location || null,
+        sourceFileName: file instanceof File && file.size ? file.name : null,
+        rawText,
+        summary: extracted.summary,
+        skills: extracted.skills.join(", "),
+        experienceYears: extracted.years
+      }
+    });
+
+    const jobs = await prisma.job.findMany();
+    for (const job of jobs) {
+      const match = explainMatch(job, candidate);
+      await prisma.match.upsert({
+        where: { jobId_candidateId: { jobId: job.id, candidateId: candidate.id } },
+        update: {
+          score: match.score,
+          matched: match.matched.join(", "),
+          missing: match.missing.join(", "),
+          questions: match.questions.join("\n"),
+          explanation: match.explanation
+        },
+        create: {
+          jobId: job.id,
+          candidateId: candidate.id,
+          score: match.score,
+          matched: match.matched.join(", "),
+          missing: match.missing.join(", "),
+          questions: match.questions.join("\n"),
+          explanation: match.explanation
+        }
+      });
+    }
+
+    return NextResponse.json(candidate);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Impossible d'analyser le CV" }, { status: 500 });
+  }
+}
