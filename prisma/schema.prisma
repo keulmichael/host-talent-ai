@@ -1,5 +1,52 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
-model Job { id String @id @default(cuid()) title String clientName String? location String? description String mustHave String shouldHave String optional String createdAt DateTime @default(now()) matches Match[] }
-model Candidate { id String @id @default(cuid()) fullName String email String? location String? sourceFileName String? rawText String summary String skills String experienceYears Int? createdAt DateTime @default(now()) matches Match[] }
-model Match { id String @id @default(cuid()) jobId String candidateId String score Int matched String missing String questions String explanation String createdAt DateTime @default(now()) job Job @relation(fields:[jobId],references:[id],onDelete:Cascade) candidate Candidate @relation(fields:[candidateId],references:[id],onDelete:Cascade) @@unique([jobId,candidateId]) }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id          String   @id @default(cuid())
+  title       String
+  clientName  String?
+  location    String?
+  description String
+  mustHave    String
+  shouldHave  String
+  optional    String
+  createdAt   DateTime @default(now())
+  matches     Match[]
+}
+
+model Candidate {
+  id              String   @id @default(cuid())
+  fullName        String
+  email           String?
+  location        String?
+  sourceFileName  String?
+  rawText         String
+  summary         String
+  skills          String
+  experienceYears Int?
+  createdAt       DateTime @default(now())
+  matches         Match[]
+}
+
+model Match {
+  id          String    @id @default(cuid())
+  jobId       String
+  candidateId String
+  score       Int
+  matched     String
+  missing     String
+  questions   String
+  explanation String
+  createdAt   DateTime  @default(now())
+
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, candidateId])
+}
