@@ -1,47 +1,55 @@
-# Host Talent AI — V1.6
+# Host Talent AI — V1.7
 
 Copilote opérationnel sécurisé pour cabinets de recrutement et cabinets de conseil RH.
 
 ## Fonctions métier
 
 - création de missions ;
-- import CV PDF/DOCX/texte ;
-- extraction de compétences et détection des mentions négatives/limitées ;
+- import CV PDF/DOCX/TXT ;
+- extraction de compétences ;
+- détection des mentions négatives ou limitées ;
 - matching explicable candidat ↔ mission ;
 - questions de préqualification ;
-- recherche dans le vivier ;
+- recherche sémantique locale dans le vivier, sans envoi des CV à un fournisseur IA externe ;
 - pipeline : à examiner, short-list, contacté, entretien, présenté client, offre, recruté, en attente, non retenu ;
 - notes recruteur et prochaine action ;
-- export CSV ;
+- export CSV du vivier et export JSON individuel ;
 - recalcul global ;
 - dashboard opérationnel.
 
-## Sécurité V1.6
+## Sécurité et multi-cabinet
 
-- authentification par e-mail et mot de passe ;
-- mots de passe hachés avec PBKDF2 ;
-- sessions persistantes stockées en base, cookie HTTP-only ;
-- comptes Administrateur / Recruteur ;
+- authentification e-mail / mot de passe ;
+- mots de passe hachés PBKDF2 ;
+- sessions persistantes en base et cookie HTTP-only ;
+- rôles Administrateur / Recruteur ;
 - activation et désactivation des utilisateurs ;
-- données rattachées à un `Organization` et requêtes cloisonnées par cabinet ;
+- cloisonnement des missions, candidats et matchings par `Organization` ;
 - journal d'audit des actions sensibles ;
 - changement de mot de passe avec invalidation des sessions ;
-- suppression définitive d'un candidat et de ses matchings associés ;
-- export limité au cabinet connecté.
+- export et suppression limités au cabinet connecté.
 
-## Première mise en service
+## Confidentialité V1.7
 
-1. Ouvrir `/setup` sur le domaine de production.
-2. Saisir le nom du cabinet, le nom du premier administrateur, son e-mail et un mot de passe d'au moins 10 caractères.
-3. Le premier administrateur est créé et connecté automatiquement.
-4. L'administrateur peut ensuite créer les comptes recruteurs depuis `Utilisateurs`.
+- durée de conservation par défaut configurable par le cabinet ;
+- durée ajustable lors de chaque import candidat ;
+- origine du profil et note confidentialité ;
+- tableau de bord des échéances de conservation ;
+- export individuel des données d'un candidat ;
+- suppression du candidat et de ses matchings ;
+- journalisation des exports et téléchargements ;
+- stockage du CV original dans Vercel Blob privé si un store Blob est connecté ;
+- téléchargement du CV original uniquement via une route authentifiée ;
+- suppression du Blob lors de l'effacement du candidat.
 
-L'initialisation `/setup` n'est acceptée que si aucun utilisateur n'existe encore.
+## Activation du stockage privé
 
-## Principe de sécurité métier
+Connecter un store Vercel Blob privé au projet. Vercel fournit alors `BLOB_READ_WRITE_TOKEN` au projet. Sans cette variable, l'import et le matching restent fonctionnels mais seul le texte extrait est conservé en base.
+
+## Principe métier
 
 Le score est une aide à la revue. Une absence de preuve dans un CV n'est pas assimilée à une incompatibilité. Aucune décision de recrutement ou de rejet n'est automatisée.
 
-## Étapes production suivantes
+## Limites avant diffusion SaaS large
 
-Avant une diffusion SaaS large : stockage persistant et chiffré des fichiers CV originaux, politique de conservation configurable, récupération de compte/mot de passe, 2FA/SSO selon offre, sauvegardes et tests de sécurité formalisés.
+Prévoir encore : récupération de compte, 2FA/SSO selon offre, sauvegardes et restauration testées, revue juridique de la politique de conservation, analyse de sécurité formalisée, monitoring, intégrations ATS/CRM et recherche vectorielle/LLM optionnelle si un cabinet la souhaite.
