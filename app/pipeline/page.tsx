@@ -1,18 +1,21 @@
 import Link from "next/link";
 import { prisma } from "../lib/db";
 import { PIPELINE_STAGES, stageLabel } from "../lib/pipeline";
+import { requireUser } from "../lib/auth";
 import MatchActions from "../MatchActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage() {
+  const user = await requireUser();
   const matches = await prisma.match.findMany({
+    where: { organizationId: user.organizationId },
     include: { candidate: true, job: true },
     orderBy: [{ stage: "asc" }, { score: "desc" }]
   });
 
   return <>
-    <div className="hero"><div><div className="eyebrow">PIPELINE</div><h1>Suivi opérationnel</h1><p className="muted">Transforme le matching en actions recruteur : short-list, contact, entretien, présentation client et suivi.</p></div></div>
+    <div className="hero"><div><div className="eyebrow">PIPELINE</div><h1>Suivi opérationnel</h1><p className="muted">{user.organization.name} · short-list, contact, entretien, présentation client et suivi.</p></div></div>
     <div className="pipelineGrid">
       {PIPELINE_STAGES.map((stage) => {
         const items = matches.filter((m) => m.stage === stage.value);
