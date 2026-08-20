@@ -1,19 +1,34 @@
 import { NextResponse } from "next/server";
-import { ACCESS_COOKIE, accessConfigured, accessToken } from "../../../lib/access";
+import { prisma } from "../../../lib/db";
+import { SESSION_COOKIE, audit, createSession, verifyPassword } from "../../../lib/auth";
 
 export async function POST(req: Request) {
-  if (!accessConfigured()) return NextResponse.json({ error: "Protection non configurée" }, { status: 503 });
-  const body = await req.json();
-  if (String(body.password || "") !== process.env.APP_ACCESS_PASSWORD) {
-    return NextResponse.json({ error: "Code d'accès incorrect" }, { status: 401 });
+  try {
+    const body = await req.json();
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+    if (!email || !password) return NextResponse.json({ error: "E-mail et mot de passe requis." }, { status: 400 });
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.active || !verifyPassword(password, user.passwordHash)) {
+      return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
+    }
+
+    await prisma.session.deleteMany({ where: { userId: user.id, expiresAt: { lt: new Date() } } });
+    const session = await createSession(user.id);
+    await audit({ organizationId: user.organizationId, userId: user.id, action: "LOGIN", entityType: "User", entityId: user.id });
+
+    const response = NextResponse.json({ ok: true, user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role } });
+    response.cookies.set(SESSION_COOKIE, session.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      expires: session.expiresAt
+    });
+    return response;
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Connexion impossible." }, { status: 500 });
   }
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(ACCESS_COOKIE, await accessToken(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 12
-  });
-  return response;
 }
