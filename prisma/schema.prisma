@@ -7,21 +7,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organization {
+  id         String      @id
+  name       String
+  createdAt  DateTime    @default(now())
+  jobs       Job[]
+  candidates Candidate[]
+  matches    Match[]
+}
+
 model Job {
-  id          String   @id @default(cuid())
-  title       String
-  clientName  String?
-  location    String?
-  description String
-  mustHave    String
-  shouldHave  String
-  optional    String
-  createdAt   DateTime @default(now())
-  matches     Match[]
+  id             String   @id @default(cuid())
+  organizationId String   @default("host-demo")
+  title          String
+  clientName     String?
+  location       String?
+  description    String
+  mustHave       String
+  shouldHave     String
+  optional       String
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  matches        Match[]
+
+  @@index([organizationId])
 }
 
 model Candidate {
   id              String   @id @default(cuid())
+  organizationId  String   @default("host-demo")
   fullName        String
   email           String?
   location        String?
@@ -31,28 +45,35 @@ model Candidate {
   skills          String
   experienceYears Int?
   createdAt       DateTime @default(now())
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   matches         Match[]
+
+  @@index([organizationId])
+  @@index([organizationId, email])
 }
 
 model Match {
-  id            String    @id @default(cuid())
-  jobId         String
-  candidateId   String
-  score         Int
-  matched       String
-  missing       String
-  questions     String
-  explanation   String
-  stage         String    @default("NEW")
-  recruiterNote String?
-  nextAction    String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  organizationId String    @default("host-demo")
+  jobId          String
+  candidateId    String
+  score          Int
+  matched        String
+  missing        String
+  questions      String
+  explanation    String
+  stage          String    @default("NEW")
+  recruiterNote  String?
+  nextAction     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate    Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, candidateId])
+  @@index([organizationId])
   @@index([stage])
   @@index([score])
 }
