@@ -26,13 +26,16 @@ export async function POST(req: Request) {
     const location = String(fd.get("location") || "").trim();
     let rawText = String(fd.get("rawText") || "").trim();
     const file = fd.get("file");
-
     if (file instanceof File && file.size) rawText = await fileToText(file);
-    if (!fullName || !rawText) {
-      return NextResponse.json({ error: "Nom et CV requis" }, { status: 400 });
-    }
+    if (!fullName || !rawText) return NextResponse.json({ error: "Nom et CV requis" }, { status: 400 });
+    if (rawText.length < 80) return NextResponse.json({ error: "Le contenu du CV semble trop court ou illisible." }, { status: 400 });
 
     const extracted = extractCandidate(rawText);
+    if (extracted.email) {
+      const duplicate = await prisma.candidate.findFirst({ where: { email: { equals: extracted.email, mode: "insensitive" } } });
+      if (duplicate) return NextResponse.json({ error: `Un candidat avec l'e-mail ${extracted.email} existe déjà.`, candidateId: duplicate.id }, { status: 409 });
+    }
+
     const candidate = await prisma.candidate.create({
       data: {
         fullName,
@@ -49,28 +52,13 @@ export async function POST(req: Request) {
     const jobs = await prisma.job.findMany();
     for (const job of jobs) {
       const match = explainMatch(job, candidate);
-      await prisma.match.upsert({
-        where: { jobId_candidateId: { jobId: job.id, candidateId: candidate.id } },
-        update: {
-          score: match.score,
-          matched: match.matched.join(", "),
-          missing: match.missing.join(", "),
-          questions: match.questions.join("\n"),
-          explanation: match.explanation
-        },
-        create: {
-          jobId: job.id,
-          candidateId: candidate.id,
-          score: match.score,
-          matched: match.matched.join(", "),
-          missing: match.missing.join(", "),
-          questions: match.questions.join("\n"),
-          explanation: match.explanation
-        }
-      });
+      await prisma.match.create({ data: {
+        jobId: job.id, candidateId: candidate.id, score: match.score,
+        matched: match.matched.join(", "), missing: match.missing.join(", "),
+        questions: match.questions.join("\n"), explanation: match.explanation
+      }});
     }
-
-    return NextResponse.json(candidate);
+    return NextResponse.json({ ...candidate, matchedJobs: jobs.length });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Impossible d'analyser le CV" }, { status: 500 });
