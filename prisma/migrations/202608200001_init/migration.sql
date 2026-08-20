@@ -1,6 +1,54 @@
-CREATE TABLE "Job" ("id" TEXT NOT NULL,"title" TEXT NOT NULL,"clientName" TEXT,"location" TEXT,"description" TEXT NOT NULL,"mustHave" TEXT NOT NULL,"shouldHave" TEXT NOT NULL,"optional" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "Job_pkey" PRIMARY KEY ("id"));
-CREATE TABLE "Candidate" ("id" TEXT NOT NULL,"fullName" TEXT NOT NULL,"email" TEXT,"location" TEXT,"sourceFileName" TEXT,"rawText" TEXT NOT NULL,"summary" TEXT NOT NULL,"skills" TEXT NOT NULL,"experienceYears" INTEGER,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "Candidate_pkey" PRIMARY KEY ("id"));
-CREATE TABLE "Match" ("id" TEXT NOT NULL,"jobId" TEXT NOT NULL,"candidateId" TEXT NOT NULL,"score" INTEGER NOT NULL,"matched" TEXT NOT NULL,"missing" TEXT NOT NULL,"questions" TEXT NOT NULL,"explanation" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "Match_pkey" PRIMARY KEY ("id"));
-CREATE UNIQUE INDEX "Match_jobId_candidateId_key" ON "Match"("jobId", "candidateId");
-ALTER TABLE "Match" ADD CONSTRAINT "Match_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "Match" ADD CONSTRAINT "Match_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Host Talent AI V1 - initial PostgreSQL schema
+
+CREATE TABLE "Job" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "clientName" TEXT,
+    "location" TEXT,
+    "description" TEXT NOT NULL,
+    "mustHave" TEXT NOT NULL,
+    "shouldHave" TEXT NOT NULL,
+    "optional" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "Candidate" (
+    "id" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
+    "email" TEXT,
+    "location" TEXT,
+    "sourceFileName" TEXT,
+    "rawText" TEXT NOT NULL,
+    "summary" TEXT NOT NULL,
+    "skills" TEXT NOT NULL,
+    "experienceYears" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Candidate_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "Match" (
+    "id" TEXT NOT NULL,
+    "jobId" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
+    "score" INTEGER NOT NULL,
+    "matched" TEXT NOT NULL,
+    "missing" TEXT NOT NULL,
+    "questions" TEXT NOT NULL,
+    "explanation" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Match_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "Match_jobId_candidateId_key"
+ON "Match"("jobId", "candidateId");
+
+ALTER TABLE "Match"
+ADD CONSTRAINT "Match_jobId_fkey"
+FOREIGN KEY ("jobId") REFERENCES "Job"("id")
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "Match"
+ADD CONSTRAINT "Match_candidateId_fkey"
+FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id")
+ON DELETE CASCADE ON UPDATE CASCADE;

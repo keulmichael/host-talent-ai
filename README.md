@@ -2,6 +2,8 @@
 
 Version prête pour un déploiement Vercel + PostgreSQL.
 
+Commence par lire : `README-VERCEL.md`.
+
 Fonctions V1 :
 - missions ;
 - vivier candidats ;

@@ -1,0 +1,1 @@
+"use client";import{useRouter}from"next/navigation";export default function B({jobId}:{jobId:string}){const r=useRouter();return <button className="btn" onClick={async()=>{await fetch("/api/match",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId})});r.refresh()}}>Rechercher dans le vivier</button>}
