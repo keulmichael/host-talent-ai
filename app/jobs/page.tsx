@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { prisma } from "../lib/db";
+import { requireUser } from "../lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
+  const user = await requireUser();
   const jobs = await prisma.job.findMany({
+    where: { organizationId: user.organizationId },
     orderBy: { createdAt: "desc" },
-    include: { matches: { select: { score: true } } }
+    include: { matches: { where: { organizationId:user.organizationId }, select: { score: true } } }
   });
   return <div className="card">
-    <div className="sectionHeader"><div><div className="eyebrow">MISSIONS</div><h1>Missions</h1><p className="muted">{jobs.length} mission(s) enregistrée(s).</p></div><Link className="btn" href="/jobs/new">Nouvelle mission</Link></div>
+    <div className="sectionHeader"><div><div className="eyebrow">MISSIONS</div><h1>Missions</h1><p className="muted">{jobs.length} mission(s) enregistrée(s) pour {user.organization.name}.</p></div><Link className="btn" href="/jobs/new">Nouvelle mission</Link></div>
     {jobs.length === 0 ? <p className="muted">Aucune mission pour le moment.</p> : <div className="tableWrap"><table>
       <thead><tr><th>Mission</th><th>Client</th><th>Localisation</th><th>Profils analysés</th><th>Meilleur score</th><th></th></tr></thead>
       <tbody>{jobs.map((job) => {
