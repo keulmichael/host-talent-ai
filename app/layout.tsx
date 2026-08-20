@@ -20,7 +20,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <Link href="/candidates/new">Importer CV</Link>
       {user.role === "ADMIN" && <Link href="/admin/users">Utilisateurs</Link>}
       {user.role === "ADMIN" && <Link href="/admin/audit">Journal</Link>}
-      <span className="userBadge">{user.fullName} · {user.organization.name}</span>
+      <Link href="/account" className="userBadge">{user.fullName} · {user.organization.name}</Link>
       <LogoutButton />
     </>}
   </nav>{children}<footer className="footer">Host Talent AI assiste la revue des candidatures. Les décisions de recrutement restent humaines.</footer></div></body></html>;
