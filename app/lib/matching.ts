@@ -1,121 +1,50 @@
 import { aliasEvidence, detectNegatedSkills, detectSkills, normalize, splitList } from "./extract";
 
-type CandidateLike = {
-  rawText: string;
-  skills: string;
-  experienceYears: number | null;
-  location: string | null;
+type CandidateLike = { rawText:string; skills:string; experienceYears:number|null; location:string|null };
+type JobLike = { mustHave:string; shouldHave:string; optional:string; location:string|null };
+type Confidence = "high"|"medium"|"low";
+type CriterionResult = { criterion:string; hit:boolean; negated:boolean; confidence:Confidence; evidence:string };
+
+const SYNONYMS:Record<string,string[]> = {
+ "intelligence artificielle generative":["intelligence artificielle generative","ia generative","genai","openai","llm","gpt"],
+ "automatisation des processus":["automatisation des processus","automatisation","workflow automatise","workflows automatises","n8n","automation"],
+ "analyse des besoins metiers":["analyse des besoins metiers","recueil des besoins","expression des besoins","cadrage fonctionnel","besoins metiers","audit de processus","analyse de processus"],
+ "conception d assistants ou agents ia":["assistant ia","assistants ia","agent ia","agents ia","assistant conversationnel"],
+ "gestion de projet digital":["gestion de projet digital","chef de projet digital","cheffe de projet digital","pilotage de projets web","pilotage de projet digital","product owner","coordination de projets"],
+ "n8n":["n8n"], "api rest":["api rest","rest api","integration api"],
+ "openai ou autres llm":["openai","llm","gpt","large language model"],
+ "openai autres llm":["openai","llm","gpt","large language model"],
+ "integration d outils saas":["integration d outils saas","saas","hubspot","salesforce","integration crm","integration api"],
+ "creation de workflows":["creation de workflows","workflow","workflows","n8n","automatisation"],
+ "conseil aupres d entreprises":["consultant","consultante","conseil","accompagnement clients","accompagnement de pme","accompagnement des entreprises","ateliers clients"],
+ "formation ou accompagnement des utilisateurs":["formation","accompagnement des utilisateurs","accompagnement au changement","ateliers utilisateurs"],
+ "typescript":["typescript"], "next.js":["next.js","nextjs"], "crm":["crm","hubspot","salesforce"],
+ "seo geo":["seo","geo","referencement naturel","generative engine optimization"],
+ "developpement web":["developpement web","developpeur web","next.js","typescript","javascript","php"]
 };
-
-type JobLike = {
-  mustHave: string;
-  shouldHave: string;
-  optional: string;
-  location: string | null;
-};
-
-type CriterionResult = { criterion: string; hit: boolean; negated: boolean; confidence: "high" | "medium" | "low" };
-
-const SYNONYMS: Record<string, string[]> = {
-  "intelligence artificielle generative": ["intelligence artificielle generative", "ia generative", "genai", "openai", "llm", "gpt"],
-  "automatisation des processus": ["automatisation des processus", "automatisation", "workflow automatise", "workflows automatises", "n8n", "automation"],
-  "analyse des besoins metiers": ["analyse des besoins metiers", "recueil des besoins", "expression des besoins", "cadrage fonctionnel", "besoins metiers"],
-  "conception d assistants ou agents ia": ["assistant ia", "assistants ia", "agent ia", "agents ia", "assistant conversationnel"],
-  "gestion de projet digital": ["gestion de projet digital", "chef de projet digital", "cheffe de projet digital", "pilotage de projets web", "pilotage de projet digital", "product owner"],
-  "n8n": ["n8n"],
-  "api rest": ["api rest", "rest api"],
-  "openai ou autres llm": ["openai", "llm", "gpt", "large language model"],
-  "openai autres llm": ["openai", "llm", "gpt", "large language model"],
-  "integration d outils saas": ["integration d outils saas", "saas", "hubspot", "crm", "integration api"],
-  "creation de workflows": ["creation de workflows", "workflow", "workflows", "n8n", "automatisation"],
-  "conseil aupres d entreprises": ["consultant", "consultante", "conseil", "accompagnement clients", "accompagnement de pme", "ateliers clients"],
-  "formation ou accompagnement des utilisateurs": ["formation", "accompagnement des utilisateurs", "accompagnement au changement", "ateliers utilisateurs"],
-  "typescript": ["typescript"],
-  "next.js": ["next.js", "nextjs"],
-  "crm": ["crm", "hubspot", "salesforce"]
-};
-
-function stripExperienceConstraint(criterion: string): string {
-  return criterion.replace(/\b\d+\s+ans(?:\s+d['’ ]?experience)?/i, "").trim();
+const NEGATIVE = /\b(aucun(?:e)?|sans|pas d['’e ]|absence|limitee?|limite|notions? seulement|debutant|veille sur)\b/i;
+function stripConstraint(c:string){return c.replace(/\b\d+\s+ans(?:\s+d['’ ]?experience)?/i,"").trim()}
+function evidence(c:string, raw:string):CriterionResult{
+ const n=normalize(stripConstraint(c)); if(!n)return{criterion:c,hit:true,negated:false,confidence:"high",evidence:"critere vide"};
+ const aliases=SYNONYMS[n]??[n];
+ for(const a of aliases){const e=aliasEvidence(raw,a);if(e.positive)return{criterion:c,hit:true,negated:false,confidence:"high",evidence:a};}
+ for(const a of aliases){const e=aliasEvidence(raw,a);if(e.negated)return{criterion:c,hit:false,negated:true,confidence:"high",evidence:a};}
+ const text=normalize(raw); const tokens=n.split(" ").filter(t=>t.length>=4&&!new Set(["avec","dans","pour","plus","experience","professionnel","professionnelle","autres","outils","creation","conception"]).has(t));
+ const count=tokens.filter(t=>text.includes(t)).length; const r=tokens.length?count/tokens.length:0;
+ if(tokens.length>=2&&r>=.8&&!NEGATIVE.test(raw))return{criterion:c,hit:true,negated:false,confidence:"medium",evidence:"correspondance semantique lexicale"};
+ return{criterion:c,hit:false,negated:false,confidence:"low",evidence:"preuve insuffisante"};
 }
-
-function criterionEvidence(criterion: string, rawText: string): CriterionResult {
-  const normalizedCriterion = normalize(stripExperienceConstraint(criterion));
-  if (!normalizedCriterion) return { criterion, hit: true, negated: false, confidence: "high" };
-
-  const aliases = SYNONYMS[normalizedCriterion] ?? [normalizedCriterion];
-  const evidences = aliases.map((a) => aliasEvidence(rawText, a));
-  if (evidences.some((e) => e.positive)) {
-    return { criterion, hit: true, negated: false, confidence: "high" };
-  }
-  if (evidences.some((e) => e.negated)) {
-    return { criterion, hit: false, negated: true, confidence: "high" };
-  }
-
-  const text = normalize(rawText);
-  const stop = new Set(["avec", "dans", "pour", "plus", "experience", "professionnel", "professionnelle", "autres", "outils", "creation", "conception"]);
-  const tokens = normalizedCriterion.split(" ").filter((t) => t.length >= 4 && !stop.has(t));
-  if (tokens.length >= 2) {
-    const count = tokens.filter((t) => text.includes(t)).length;
-    const ratio = count / tokens.length;
-    if (ratio >= 0.8) return { criterion, hit: true, negated: false, confidence: "medium" };
-  }
-  return { criterion, hit: false, negated: false, confidence: "low" };
-}
-
-function ratio(items: CriterionResult[]): number {
-  return items.length ? items.filter((x) => x.hit).length / items.length : 1;
-}
-
-export function explainMatch(job: JobLike, candidate: CandidateLike) {
-  const rawText = `${candidate.rawText} ${candidate.location ?? ""}`;
-  const detectedSkills = detectSkills(candidate.rawText);
-  const negatedSkills = detectNegatedSkills(candidate.rawText);
-
-  const mustEval = splitList(job.mustHave).map((c) => criterionEvidence(c, rawText));
-  const shouldEval = splitList(job.shouldHave).map((c) => criterionEvidence(c, rawText));
-  const optionalEval = splitList(job.optional).map((c) => criterionEvidence(c, rawText));
-
-  const all = [...mustEval, ...shouldEval, ...optionalEval];
-  const matched = all.filter((x) => x.hit);
-  const missing = [...mustEval, ...shouldEval].filter((x) => !x.hit);
-  const negated = all.filter((x) => x.negated);
-
-  const mustRatio = ratio(mustEval);
-  const shouldRatio = ratio(shouldEval);
-  const optionalRatio = ratio(optionalEval);
-  let score = Math.round(mustRatio * 65 + shouldRatio * 25 + optionalRatio * 10);
-
-  const requiredYears = Number(job.mustHave.match(/\b(\d+)\s+ans/i)?.[1] || 0);
-  if (requiredYears > 0) {
-    if (candidate.experienceYears == null) score -= 4;
-    else if (candidate.experienceYears < requiredYears) score = Math.min(score, 64);
-  }
-
-  score -= Math.min(18, negated.length * 6);
-  const mediumHits = matched.filter((x) => x.confidence === "medium").length;
-  if (mediumHits > 0) score -= Math.min(6, mediumHits * 2);
-  score = Math.max(0, Math.min(100, score));
-
-  const questions = missing.slice(0, 5).map((m) => m.negated
-    ? `Votre CV semble indiquer une expérience limitée ou absente concernant « ${m.criterion} ». Pouvez-vous confirmer votre niveau réel ?`
-    : `Pouvez-vous préciser votre expérience concernant : ${m.criterion} ?`);
-
-  const verdict = score >= 85 ? "Très forte adéquation" : score >= 70 ? "Bonne adéquation" : score >= 55 ? "Adéquation partielle" : score >= 40 ? "Profil à approfondir" : "Faible adéquation apparente";
-  const explanation =
-    `${verdict}. Critères indispensables ${Math.round(mustRatio * 100)} %, souhaitables ${Math.round(shouldRatio * 100)} %, optionnels ${Math.round(optionalRatio * 100)} %. ` +
-    `Compétences positives détectées : ${detectedSkills.join(", ") || "aucune"}. ` +
-    `${negatedSkills.length ? `Compétences mentionnées dans un contexte négatif/limité : ${negatedSkills.join(", ")}. ` : ""}` +
-    `Le score sert uniquement d'aide à l'examen et ne constitue jamais une décision automatique.`;
-
-  return {
-    score,
-    matched: matched.map((x) => x.criterion),
-    missing: missing.map((x) => x.criterion),
-    questions,
-    explanation,
-    detectedSkills,
-    negatedSkills,
-    verdict
-  };
+const ratio=(xs:CriterionResult[])=>xs.length?xs.filter(x=>x.hit).length/xs.length:1;
+export function explainMatch(job:JobLike,candidate:CandidateLike){
+ const raw=`${candidate.rawText} ${candidate.location??""}`; const detectedSkills=detectSkills(candidate.rawText); const negatedSkills=detectNegatedSkills(candidate.rawText);
+ const must=splitList(job.mustHave).map(c=>evidence(c,raw)), should=splitList(job.shouldHave).map(c=>evidence(c,raw)), optional=splitList(job.optional).map(c=>evidence(c,raw));
+ const all=[...must,...should,...optional], matched=all.filter(x=>x.hit), missing=[...must,...should].filter(x=>!x.hit), negated=all.filter(x=>x.negated);
+ const mr=ratio(must), sr=ratio(should), or=ratio(optional);
+ let score=Math.round(mr*65+sr*25+or*10);
+ const years=Number(job.mustHave.match(/\b(\d+)\s+ans/i)?.[1]||0); if(years){if(candidate.experienceYears==null)score-=3;else if(candidate.experienceYears<years)score=Math.min(score,64)}
+ score-=Math.min(20,negated.length*7); score-=Math.min(5,matched.filter(x=>x.confidence==="medium").length); score=Math.max(0,Math.min(100,score));
+ const questions=missing.slice(0,5).map(m=>m.negated?`Le CV mentionne « ${m.criterion} » dans un contexte limité ou négatif. Quel est votre niveau réel ?`:`Le CV ne permet pas de confirmer « ${m.criterion} ». Pouvez-vous préciser votre expérience ?`);
+ const verdict=score>=85?"Très forte adéquation":score>=70?"Bonne adéquation":score>=55?"Adéquation partielle":score>=40?"Profil à approfondir":"Faible adéquation apparente";
+ const explanation=`${verdict}. Indispensables ${Math.round(mr*100)} %, souhaitables ${Math.round(sr*100)} %, optionnels ${Math.round(or*100)} %. Compétences positives détectées : ${detectedSkills.join(", ")||"aucune"}. ${negatedSkills.length?`Mentions négatives/limitées : ${negatedSkills.join(", ")}. `:""}Une absence de preuve dans le CV n'est pas assimilée à une incompatibilité. Le score est une aide au tri et jamais une décision automatique.`;
+ return{score,matched:matched.map(x=>x.criterion),missing:missing.map(x=>x.criterion),questions,explanation,detectedSkills,negatedSkills,verdict,evidence:all.map(x=>({criterion:x.criterion,status:x.hit?"confirme":x.negated?"limite":"a_verifier",confidence:x.confidence,evidence:x.evidence}))};
 }
