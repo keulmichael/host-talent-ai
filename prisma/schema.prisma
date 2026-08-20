@@ -8,14 +8,15 @@ datasource db {
 }
 
 model Organization {
-  id         String      @id
-  name       String
-  createdAt  DateTime    @default(now())
-  jobs       Job[]
-  candidates Candidate[]
-  matches    Match[]
-  users      User[]
-  auditLogs  AuditLog[]
+  id              String      @id
+  name            String
+  retentionMonths Int         @default(24)
+  createdAt       DateTime    @default(now())
+  jobs            Job[]
+  candidates      Candidate[]
+  matches         Match[]
+  users           User[]
+  auditLogs       AuditLog[]
 }
 
 model User {
@@ -87,16 +88,23 @@ model Candidate {
   email           String?
   location        String?
   sourceFileName  String?
+  filePathname    String?
+  fileContentType String?
+  fileSize        Int?
   rawText         String
   summary         String
   skills          String
   experienceYears Int?
+  dataSource      String   @default("CV_IMPORT")
+  privacyNote     String?
+  retentionUntil  DateTime?
   createdAt       DateTime @default(now())
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   matches         Match[]
 
   @@index([organizationId])
   @@index([organizationId, email])
+  @@index([organizationId, retentionUntil])
 }
 
 model Match {
