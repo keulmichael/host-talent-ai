@@ -6,6 +6,7 @@ import { prisma } from "../../lib/db";
 import { extractCandidate } from "../../lib/extract";
 import { explainMatch } from "../../lib/matching";
 import { apiUser, audit } from "../../lib/auth";
+import { blobAuthOptions, blobConfigured } from "../../lib/blob";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".txt"];
@@ -92,10 +93,15 @@ export async function POST(req: Request) {
       }
     });
 
-    if (file instanceof File && file.size && process.env.BLOB_READ_WRITE_TOKEN) {
+    if (file instanceof File && file.size && blobConfigured()) {
       try {
         const pathname = `${user.organizationId}/candidates/${candidate.id}/${safeName(file.name)}`;
-        const blob = await put(pathname, file, { access: "private", addRandomSuffix: false });
+        const blob = await put(pathname, file, {
+          access: "private",
+          addRandomSuffix: false,
+          contentType: file.type || undefined,
+          ...blobAuthOptions()
+        });
         candidate = await prisma.candidate.update({
           where: { id: candidate.id },
           data: {
@@ -104,6 +110,7 @@ export async function POST(req: Request) {
             fileSize: file.size
           }
         });
+        await audit({ organizationId: user.organizationId, userId: user.id, action: "CV_STORED_PRIVATE", entityType: "Candidate", entityId: candidate.id, details: blob.pathname });
       } catch (storageError) {
         console.error("CV private storage failed", storageError);
         await audit({ organizationId: user.organizationId, userId: user.id, action: "CV_STORAGE_FAILED", entityType: "Candidate", entityId: candidate.id, details: file.name });
