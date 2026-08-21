@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { prisma } from "../../../lib/db";
 import { apiUser, audit } from "../../../lib/auth";
+import { blobAuthOptions, blobConfigured } from "../../../lib/blob";
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id:string }> }) {
   try {
@@ -11,9 +12,13 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id:stri
     const candidate = await prisma.candidate.findFirst({ where: { id, organizationId: user.organizationId } });
     if (!candidate) return NextResponse.json({ error: "Candidat introuvable" }, { status: 404 });
 
-    if (candidate.filePathname && process.env.BLOB_READ_WRITE_TOKEN) {
-      try { await del(candidate.filePathname); }
-      catch (error) {
+    if (candidate.filePathname) {
+      if (!blobConfigured()) {
+        return NextResponse.json({ error: "Le stockage privé n'est pas disponible. Suppression interrompue pour éviter un fichier orphelin." }, { status: 503 });
+      }
+      try {
+        await del(candidate.filePathname, blobAuthOptions());
+      } catch (error) {
         console.error("Private CV deletion failed", error);
         return NextResponse.json({ error: "Le fichier privé n'a pas pu être supprimé. Suppression interrompue." }, { status: 502 });
       }
