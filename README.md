@@ -1,4 +1,4 @@
-# Host Talent AI — V1.7
+# Host Talent AI — V1.8
 
 Copilote opérationnel sécurisé pour cabinets de recrutement et cabinets de conseil RH.
 
@@ -11,11 +11,14 @@ Copilote opérationnel sécurisé pour cabinets de recrutement et cabinets de co
 - matching explicable candidat ↔ mission ;
 - questions de préqualification ;
 - recherche sémantique locale dans le vivier, sans envoi des CV à un fournisseur IA externe ;
+- comparaison côte à côte des meilleurs profils d'une mission ;
+- short-list client pilotée depuis les étapes du pipeline ;
+- dossier client imprimable / exportable en PDF sans notes recruteur internes ;
 - pipeline : à examiner, short-list, contacté, entretien, présenté client, offre, recruté, en attente, non retenu ;
 - notes recruteur et prochaine action ;
-- export CSV du vivier et export JSON individuel ;
+- export CSV du vivier, export JSON individuel et export JSON structuré mission pour intégration ATS/CRM ;
 - recalcul global ;
-- dashboard opérationnel.
+- dashboard opérationnel avec suivi des short-lists.
 
 ## Sécurité et multi-cabinet
 
@@ -29,7 +32,7 @@ Copilote opérationnel sécurisé pour cabinets de recrutement et cabinets de co
 - changement de mot de passe avec invalidation des sessions ;
 - export et suppression limités au cabinet connecté.
 
-## Confidentialité V1.7
+## Confidentialité et stockage privé
 
 - durée de conservation par défaut configurable par le cabinet ;
 - durée ajustable lors de chaque import candidat ;
@@ -38,13 +41,23 @@ Copilote opérationnel sécurisé pour cabinets de recrutement et cabinets de co
 - export individuel des données d'un candidat ;
 - suppression du candidat et de ses matchings ;
 - journalisation des exports et téléchargements ;
-- stockage du CV original dans Vercel Blob privé si un store Blob est connecté ;
+- stockage du CV original dans Vercel Blob privé ;
+- compatibilité avec le store projet Vercel via `BLOB_STORE_ID` et l'authentification OIDC du runtime, avec prise en charge de l'ancien token statique si présent ;
 - téléchargement du CV original uniquement via une route authentifiée ;
 - suppression du Blob lors de l'effacement du candidat.
 
-## Activation du stockage privé
+## V1.8 — présentation client et interopérabilité
 
-Connecter un store Vercel Blob privé au projet. Vercel fournit alors `BLOB_READ_WRITE_TOKEN` au projet. Sans cette variable, l'import et le matching restent fonctionnels mais seul le texte extrait est conservé en base.
+Depuis une mission :
+
+1. analyser le vivier ;
+2. comparer les cinq meilleurs candidats dans `/jobs/[id]/compare` ;
+3. ajouter les profils retenus à la short-list ;
+4. générer le dossier client dans `/jobs/[id]/client` ;
+5. imprimer ou enregistrer le dossier en PDF ;
+6. exporter la mission et ses candidats au format JSON normalisé via `/api/jobs/[id]/export` pour préparer une connexion ATS/CRM.
+
+Le dossier client n'affiche pas les notes recruteur internes, les prochaines actions ni les coordonnées privées utilisées en interne.
 
 ## Principe métier
 
@@ -52,4 +65,4 @@ Le score est une aide à la revue. Une absence de preuve dans un CV n'est pas as
 
 ## Limites avant diffusion SaaS large
 
-Prévoir encore : récupération de compte, 2FA/SSO selon offre, sauvegardes et restauration testées, revue juridique de la politique de conservation, analyse de sécurité formalisée, monitoring, intégrations ATS/CRM et recherche vectorielle/LLM optionnelle si un cabinet la souhaite.
+Prévoir encore : récupération de compte, 2FA/SSO selon offre, sauvegardes et restauration testées, revue juridique de la politique de conservation, analyse de sécurité formalisée, monitoring, connecteurs ATS/CRM natifs et recherche vectorielle/LLM optionnelle si un cabinet la souhaite.
