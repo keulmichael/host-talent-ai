@@ -76,19 +76,44 @@ export function explainMatch(job:JobLike,candidate:CandidateLike){
  const raw=`${candidate.rawText} ${candidate.skills||""} ${candidate.location??""}`;
  const detectedSkills=detectSkills(candidate.rawText),negatedSkills=detectNegatedSkills(candidate.rawText);
  const must=splitList(job.mustHave).map(c=>criterionEvidence(c,raw,candidate)),should=splitList(job.shouldHave).map(c=>criterionEvidence(c,raw,candidate)),optional=splitList(job.optional).map(c=>criterionEvidence(c,raw,candidate));
- const all=[...must,...should,...optional],matched=all.filter(x=>x.hit),missing=[...must,...should].filter(x=>!x.hit);
+ const all=[...must,...should,...optional];
+ const matched=all.filter(x=>x.hit);
+ // Seuls les indispensables et souhaitables non confirmés sont des critères CV à vérifier.
+ // Les optionnels non trouvés restent informatifs et ne doivent jamais être présentés comme des lacunes.
+ const requiredMissing=[...must,...should].filter(x=>!x.hit);
+ const optionalUnconfirmed=optional.filter(x=>!x.hit);
  const mr=weightedRatio(must),sr=weightedRatio(should),or=weightedRatio(optional);
  let score=Math.round(mr*65+sr*25+or*10);
  const mustNegated=must.filter(x=>x.negated).length;if(mustNegated)score-=mustNegated*4;
  score=Math.max(0,Math.min(100,score));
- const questions=missing.slice(0,5).map(m=>{
+ const questions=requiredMissing.slice(0,5).map(m=>{
    const req=experienceRequired(m.criterion);
    if(req&&candidate.experienceYears!=null)return`Le profil présente environ ${candidate.experienceYears} ans d'expérience pour un minimum demandé de ${req} ans. Pouvez-vous confirmer l'ancienneté pertinente pour cette mission ?`;
    return m.negated?`Le CV mentionne « ${m.criterion} » dans un contexte limité ou négatif. Quel est votre niveau réel ?`:`Le CV ne permet pas de confirmer « ${m.criterion} ». Pouvez-vous préciser votre expérience ?`;
  });
  const verdict=score>=85?"Très forte adéquation":score>=70?"Bonne adéquation":score>=55?"Adéquation partielle":score>=40?"Profil à approfondir":"Faible adéquation apparente";
- const confirmed=all.filter(x=>x.hit).length,limited=all.filter(x=>x.negated).length,unknown=all.filter(x=>!x.hit&&!x.negated).length;
+ const confirmed=all.filter(x=>x.hit).length;
+ const limited=[...must,...should].filter(x=>x.negated).length;
+ const requiredUnknown=requiredMissing.filter(x=>!x.negated).length;
  const experienceText=candidate.experienceYears==null?"Ancienneté : à confirmer.":`Ancienneté détectée : ${candidate.experienceYears} ans.`;
- const explanation=`${verdict}. Indispensables ${Math.round(mr*100)} %, souhaitables ${Math.round(sr*100)} %, optionnels ${Math.round(or*100)} %. Preuves : ${confirmed} critère(s) confirmé(s), ${limited} mention(s) limitée(s/négatives), ${unknown} critère(s) à vérifier. ${experienceText} ${locationInfo(job,candidate)} Compétences positives détectées : ${detectedSkills.join(", ")||"aucune"}. ${negatedSkills.length?`Mentions négatives/limitées : ${negatedSkills.join(", ")}. `:""}Les critères structurés (ancienneté) sont évalués séparément des compétences textuelles. Les synonymes et concepts métiers sont rapprochés, mais une absence de preuve n'est pas assimilée à une incompatibilité. Le score est une aide à la revue humaine, jamais une décision automatique.`;
- return{score,matched:matched.map(x=>x.criterion),missing:missing.map(x=>x.criterion),questions,explanation,detectedSkills,negatedSkills,verdict,evidence:all.map(x=>({criterion:x.criterion,status:x.hit?"confirme":x.negated?"limite":"a_verifier",confidence:x.confidence,evidence:x.evidence,strength:x.strength}))};
+ const requiredEvidenceText=requiredMissing.length===0
+   ?"Aucun critère indispensable ou souhaitable ne reste à vérifier dans le CV."
+   :`${requiredMissing.length} critère(s) indispensable(s/souhaitable(s) reste(nt) à vérifier.`;
+ const optionalText=optionalUnconfirmed.length
+   ?`${optionalUnconfirmed.length} critère(s) optionnel(s) non confirmé(s), sans être considéré(s) comme des lacunes.`
+   :"Tous les critères optionnels sont également confirmés.";
+ const explanation=`${verdict}. Indispensables ${Math.round(mr*100)} %, souhaitables ${Math.round(sr*100)} %, optionnels ${Math.round(or*100)} %. Preuves CV : ${confirmed} critère(s) confirmé(s), ${limited} mention(s) limitée(s/négatives), ${requiredUnknown} critère(s) requis à vérifier. ${requiredEvidenceText} ${optionalText} ${experienceText} ${locationInfo(job,candidate)} Compétences positives détectées : ${detectedSkills.join(", ")||"aucune"}. ${negatedSkills.length?`Mentions négatives/limitées : ${negatedSkills.join(", ")}. `:""}Les informations de préqualification commerciale (disponibilité, TJM et prétention salariale) sont distinctes de l'adéquation CV et n'abaissent pas ce score lorsqu'elles ne sont pas renseignées. Les critères structurés (ancienneté) sont évalués séparément des compétences textuelles. Les synonymes et concepts métiers sont rapprochés, mais une absence de preuve n'est pas assimilée à une incompatibilité. Le score est une aide à la revue humaine, jamais une décision automatique.`;
+ return{
+   score,
+   matched:matched.map(x=>x.criterion),
+   missing:requiredMissing.map(x=>x.criterion),
+   questions,
+   explanation,
+   detectedSkills,
+   negatedSkills,
+   verdict,
+   evidence:all.map(x=>({criterion:x.criterion,status:x.hit?"confirme":x.negated?"limite":"a_verifier",confidence:x.confidence,evidence:x.evidence,strength:x.strength})),
+   requiredMissing:requiredMissing.map(x=>x.criterion),
+   optionalUnconfirmed:optionalUnconfirmed.map(x=>x.criterion)
+ };
 }
