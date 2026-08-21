@@ -28,42 +28,67 @@ const SYNONYMS:Record<string,string[]> = {
  "lead scoring":["lead scoring","scoring des leads","scoring marketing","scoring marketing commercial","score de maturite"],
  "reporting":["reporting","tableaux de bord","tableau de bord","dashboard","dashboards","kpi","suivi des kpi"],
  "analyse de donnees":["analyse de donnees","data analysis","sql","analytics","donnees crm"],
+ "analyse de donnees reporting":["analyse de donnees","reporting","tableaux de bord","dashboard","dashboards","kpi","sql","analytics","donnees crm"],
  "sql":["sql"],
  "campagnes multicanales":["campagnes multicanales","multicanal","emailing","email marketing","sms marketing","campagnes crm"],
  "cycle de vie client":["cycle de vie client","lifecycle","lifecycle marketing","fidelisation","reactivation"],
+ "anglais professionnel":["anglais professionnel","anglais courant","anglais fluent","anglais bilingue","english professional","professional english","fluent english","business english"],
+ "anglais courant":["anglais courant","anglais professionnel","anglais fluent","fluent english","professional english","business english"],
+ "management d equipe":["management d equipe","management equipe","manager une equipe","management de","encadrement d equipe","pilotage d equipe","management fonctionnel"],
  "typescript":["typescript"], "next.js":["next.js","nextjs"],
  "seo geo":["seo","geo","referencement naturel","generative engine optimization"],
  "developpement web":["developpement web","developpeur web","next.js","typescript","javascript","php","react"]
 };
 
-function stripConstraint(c:string){return c.replace(/\b\d+\s+ans(?:\s+d['’ ]?experience)?/i,"").trim()}
+function stripConstraint(c:string){return c.replace(/^[-–—•·✓✔\s]+/,"").trim()}
+function experienceRequired(c:string){const n=normalize(c);if(!/(experience|anciennete)/.test(n))return 0;return Number(n.match(/\b(\d{1,2})\s+ans\b/)?.[1]||0)}
 function aliasesFor(c:string){const n=normalize(stripConstraint(c));if(SYNONYMS[n])return SYNONYMS[n];for(const [key,aliases] of Object.entries(SYNONYMS)){if(n.includes(key)||key.includes(n))return [...new Set([n,...aliases])]}return[n]}
-function evidence(c:string,raw:string):CriterionResult{
+function textualEvidence(c:string,raw:string):CriterionResult{
  const n=normalize(stripConstraint(c));
  if(!n)return{criterion:c,hit:true,negated:false,confidence:"high",evidence:"critère non discriminant",strength:1};
  const aliases=aliasesFor(c);
  for(const a of aliases){const e=aliasEvidence(raw,a);if(e.positive){const exact=normalize(a)===n;return{criterion:c,hit:true,negated:false,confidence:"high",evidence:exact?`preuve directe : ${a}`:`preuve sémantique : ${a}`,strength:exact?1:.92};}}
  for(const a of aliases){const e=aliasEvidence(raw,a);if(e.negated)return{criterion:c,hit:false,negated:true,confidence:"high",evidence:`mention limitée/négative : ${a}`,strength:0};}
- const text=normalize(raw),stop=new Set(["avec","dans","pour","plus","experience","professionnel","professionnelle","autres","outils","creation","conception","gestion"]);
+ const text=normalize(raw),stop=new Set(["avec","dans","pour","plus","experience","professionnel","professionnelle","autres","outils","creation","conception","gestion","minimum"]);
  const tokens=n.split(" ").filter(t=>t.length>=4&&!stop.has(t)),count=tokens.filter(t=>text.includes(t)).length,r=tokens.length?count/tokens.length:0;
  if(tokens.length>=2&&r>=.67)return{criterion:c,hit:true,negated:false,confidence:"medium",evidence:"correspondance conceptuelle partielle",strength:.72};
  return{criterion:c,hit:false,negated:false,confidence:"low",evidence:"preuve insuffisante dans le CV",strength:0};
 }
+function criterionEvidence(c:string,raw:string,candidate:CandidateLike):CriterionResult{
+ const required=experienceRequired(c);
+ if(required){
+   if(candidate.experienceYears==null)return{criterion:c,hit:false,negated:false,confidence:"low",evidence:`ancienneté requise : ${required} ans ; ancienneté non déterminée`,strength:0};
+   if(candidate.experienceYears>=required)return{criterion:c,hit:true,negated:false,confidence:"high",evidence:`ancienneté structurée : ${candidate.experienceYears} ans ≥ ${required} ans`,strength:1};
+   return{criterion:c,hit:false,negated:false,confidence:"high",evidence:`ancienneté structurée : ${candidate.experienceYears} ans < ${required} ans`,strength:0};
+ }
+ return textualEvidence(c,raw);
+}
 function weightedRatio(xs:CriterionResult[]){return xs.length?xs.reduce((s,x)=>s+(x.hit?x.strength:0),0)/xs.length:1}
+function locationInfo(job:JobLike,candidate:CandidateLike){
+ const j=normalize(job.location||""),c=normalize(candidate.location||"");
+ if(!j)return"Localisation mission non renseignée.";
+ if(!c)return`Localisation demandée : ${job.location}; localisation candidat à confirmer.`;
+ const tokens=j.split(/\s|\/|,/).filter(x=>x.length>3&&!['hybride','teletravail','remote'].includes(x));
+ const compatible=tokens.some(t=>c.includes(t));
+ return compatible?`Localisation compatible : ${candidate.location} / ${job.location}.`:`Localisation à valider : ${candidate.location} / ${job.location}.`;
+}
 export function explainMatch(job:JobLike,candidate:CandidateLike){
  const raw=`${candidate.rawText} ${candidate.skills||""} ${candidate.location??""}`;
  const detectedSkills=detectSkills(candidate.rawText),negatedSkills=detectNegatedSkills(candidate.rawText);
- const must=splitList(job.mustHave).map(c=>evidence(c,raw)),should=splitList(job.shouldHave).map(c=>evidence(c,raw)),optional=splitList(job.optional).map(c=>evidence(c,raw));
+ const must=splitList(job.mustHave).map(c=>criterionEvidence(c,raw,candidate)),should=splitList(job.shouldHave).map(c=>criterionEvidence(c,raw,candidate)),optional=splitList(job.optional).map(c=>criterionEvidence(c,raw,candidate));
  const all=[...must,...should,...optional],matched=all.filter(x=>x.hit),missing=[...must,...should].filter(x=>!x.hit);
  const mr=weightedRatio(must),sr=weightedRatio(should),or=weightedRatio(optional);
  let score=Math.round(mr*65+sr*25+or*10);
- const years=Number(job.mustHave.match(/\b(\d+)\s+ans/i)?.[1]||0);
- if(years){if(candidate.experienceYears==null)score-=2;else if(candidate.experienceYears<years)score=Math.min(score,64)}
  const mustNegated=must.filter(x=>x.negated).length;if(mustNegated)score-=mustNegated*4;
  score=Math.max(0,Math.min(100,score));
- const questions=missing.slice(0,5).map(m=>m.negated?`Le CV mentionne « ${m.criterion} » dans un contexte limité ou négatif. Quel est votre niveau réel ?`:`Le CV ne permet pas de confirmer « ${m.criterion} ». Pouvez-vous préciser votre expérience ?`);
+ const questions=missing.slice(0,5).map(m=>{
+   const req=experienceRequired(m.criterion);
+   if(req&&candidate.experienceYears!=null)return`Le profil présente environ ${candidate.experienceYears} ans d'expérience pour un minimum demandé de ${req} ans. Pouvez-vous confirmer l'ancienneté pertinente pour cette mission ?`;
+   return m.negated?`Le CV mentionne « ${m.criterion} » dans un contexte limité ou négatif. Quel est votre niveau réel ?`:`Le CV ne permet pas de confirmer « ${m.criterion} ». Pouvez-vous préciser votre expérience ?`;
+ });
  const verdict=score>=85?"Très forte adéquation":score>=70?"Bonne adéquation":score>=55?"Adéquation partielle":score>=40?"Profil à approfondir":"Faible adéquation apparente";
  const confirmed=all.filter(x=>x.hit).length,limited=all.filter(x=>x.negated).length,unknown=all.filter(x=>!x.hit&&!x.negated).length;
- const explanation=`${verdict}. Indispensables ${Math.round(mr*100)} %, souhaitables ${Math.round(sr*100)} %, optionnels ${Math.round(or*100)} %. Preuves : ${confirmed} critère(s) confirmé(s), ${limited} mention(s) limitée(s/négatives), ${unknown} critère(s) à vérifier. Compétences positives détectées : ${detectedSkills.join(", ")||"aucune"}. ${negatedSkills.length?`Mentions négatives/limitées : ${negatedSkills.join(", ")}. `:""}Les synonymes et concepts métiers sont rapprochés, mais une absence de preuve n'est pas assimilée à une incompatibilité. Le score est une aide à la revue humaine, jamais une décision automatique.`;
+ const experienceText=candidate.experienceYears==null?"Ancienneté : à confirmer.":`Ancienneté détectée : ${candidate.experienceYears} ans.`;
+ const explanation=`${verdict}. Indispensables ${Math.round(mr*100)} %, souhaitables ${Math.round(sr*100)} %, optionnels ${Math.round(or*100)} %. Preuves : ${confirmed} critère(s) confirmé(s), ${limited} mention(s) limitée(s/négatives), ${unknown} critère(s) à vérifier. ${experienceText} ${locationInfo(job,candidate)} Compétences positives détectées : ${detectedSkills.join(", ")||"aucune"}. ${negatedSkills.length?`Mentions négatives/limitées : ${negatedSkills.join(", ")}. `:""}Les critères structurés (ancienneté) sont évalués séparément des compétences textuelles. Les synonymes et concepts métiers sont rapprochés, mais une absence de preuve n'est pas assimilée à une incompatibilité. Le score est une aide à la revue humaine, jamais une décision automatique.`;
  return{score,matched:matched.map(x=>x.criterion),missing:missing.map(x=>x.criterion),questions,explanation,detectedSkills,negatedSkills,verdict,evidence:all.map(x=>({criterion:x.criterion,status:x.hit?"confirme":x.negated?"limite":"a_verifier",confidence:x.confidence,evidence:x.evidence,strength:x.strength}))};
 }
