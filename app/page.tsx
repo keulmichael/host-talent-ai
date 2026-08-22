@@ -7,22 +7,53 @@ import RecomputeAllButton from "./RecomputeAllButton";
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard(){
- const user=await requireUser(); const organizationId=user.organizationId; const now=new Date(); const d30=new Date(now.getTime()+30*86400000); const d7=new Date(now.getTime()+7*86400000);
- const[jobCount,candidateCount,matchCount,recentJobs,topMatches,activePipeline,strong,expiring,privateFiles,shortlisted,activeShares,feedbackCount,dueActions,overdueActions,webhookCount,templateCount,surveyCount,surveyResponseCount]=await Promise.all([
-  prisma.job.count({where:{organizationId}}),prisma.candidate.count({where:{organizationId}}),prisma.match.count({where:{organizationId}}),
-  prisma.job.findMany({where:{organizationId},take:5,orderBy:{createdAt:"desc"},include:{matches:{where:{organizationId},select:{score:true}},clientShares:{where:{organizationId,active:true},select:{id:true}}}}),
-  prisma.match.findMany({where:{organizationId},take:5,orderBy:{score:"desc"},include:{candidate:true,job:true}}),
-  prisma.match.findMany({where:{organizationId,stage:{not:"NEW"}},take:6,orderBy:{updatedAt:"desc"},include:{candidate:true,job:true,activities:{where:{status:"PLANNED"},orderBy:{dueAt:"asc"},take:1}}}),
-  prisma.match.count({where:{organizationId,score:{gte:70}}}),prisma.candidate.count({where:{organizationId,retentionUntil:{lte:d30}}}),prisma.candidate.count({where:{organizationId,filePathname:{not:null}}}),
-  prisma.match.count({where:{organizationId,stage:{in:["SHORTLIST","CONTACTED","INTERVIEW","CLIENT","OFFER","HIRED"]}}}),prisma.clientShare.count({where:{organizationId,active:true,expiresAt:{gt:now}}}),prisma.clientFeedback.count({where:{share:{organizationId}}}),
-  prisma.candidateActivity.count({where:{organizationId,status:"PLANNED",dueAt:{gte:now,lte:d7}}}),prisma.candidateActivity.count({where:{organizationId,status:"PLANNED",dueAt:{lt:now}}}),prisma.webhookEndpoint.count({where:{organizationId,active:true}}),prisma.messageTemplate.count({where:{organizationId,active:true}}),prisma.candidateSurvey.count({where:{organizationId}}),prisma.candidateSurveyResponse.count({where:{survey:{organizationId}}})
- ]);
- return <>
-  <div className="hero"><div><div className="eyebrow">COPILOTE RECRUTEUR · V2.6 · INTELLIGENCE DU VIVIER</div><h1>Du CV individuel à l'intelligence collective du vivier.</h1><p className="muted">{user.organization.name} · matching, expérience candidat, audit des frictions et désormais analyse des tendances de compétences et des écarts entre vivier et missions.</p></div><div className="actions"><Link className="btn" href="/jobs/new">Créer une mission</Link><Link className="btn secondary" href="/talent">Tendances vivier</Link><Link className="btn secondary" href="/audit">Audit candidat</Link><Link className="btn secondary" href="/experience">Observatoire candidat</Link><Link className="btn secondary" href="/actions">Centre d'actions</Link><Link className="btn secondary" href="/pipeline">Pipeline</Link><RecomputeAllButton/></div></div>
-  <div className="card" style={{marginTop:16}}><h2>Deux observatoires complémentaires</h2><div className="criteriaGrid"><div><strong>Talent & Tendances</strong><p>Comprend la structure du vivier : compétences, séniorité, localisation, raretés et potentiel sous-exploité.</p><Link href="/talent">Explorer le vivier →</Link></div><div><strong>Expérience candidat</strong><p>Mesure clarté, réactivité, respect et transparence pour détecter les frictions vécues.</p><Link href="/experience">Observer l'expérience →</Link></div><div><strong>Audit & Actions</strong><p>Croise les signaux pour transformer les constats en plans d'action suivis par le cabinet.</p><Link href="/audit">Diagnostiquer →</Link></div></div></div>
-  <div className="grid" style={{marginTop:16}}><div className="card"><div className="muted">Missions</div><div className="score">{jobCount}</div></div><div className="card"><div className="muted">Candidats</div><div className="score">{candidateCount}</div></div><div className="card"><div className="muted">Actions à venir ≤ 7 jours</div><div className="score">{dueActions}</div></div><div className="card"><div className="muted">Relances en retard</div><div className="score">{overdueActions}</div></div><div className="card"><div className="muted">Retours candidat reçus</div><div className="score">{surveyResponseCount}</div></div><div className="card"><div className="muted">Profils en short-list / process</div><div className="score">{shortlisted}</div></div></div>
-  {user.role==="ADMIN"&&<div className="grid" style={{marginTop:16}}><div className="card"><div className="muted">Connecteurs actifs</div><div className="score">{webhookCount}</div></div><div className="card"><div className="muted">Modèles relationnels actifs</div><div className="score">{templateCount}</div></div><div className="card"><div className="muted">CV originaux privés</div><div className="score">{privateFiles}</div></div><div className="card"><div className="muted">Conservation à revoir ≤ 30 jours</div><div className="score">{expiring}</div></div><div className="card"><div className="muted">Adéquations ≥ 70</div><div className="score">{strong}</div></div><div className="card"><div className="muted">Matchings calculés</div><div className="score">{matchCount}</div></div></div>}
-  <div className="grid" style={{marginTop:16}}><div className="card"><div className="sectionHeader"><h2>Missions récentes</h2><Link href="/jobs">Tout voir →</Link></div>{recentJobs.length===0?<p className="muted">Aucune mission.</p>:recentJobs.map(j=>{const best=j.matches.length?Math.max(...j.matches.map(m=>m.score)):null;return <div className="listRow" key={j.id}><div><Link href={`/jobs/${j.id}`}><strong>{j.title}</strong></Link></div><span className="muted">{best==null?"Pas encore analysée":`meilleur score ${best}/100`}</span></div>})}</div><div className="card"><div className="sectionHeader"><h2>Meilleures correspondances</h2><Link href="/talent">Tendances →</Link></div>{topMatches.length===0?<p className="muted">Aucun matching.</p>:topMatches.map(m=><div className="listRow" key={m.id}><div><Link href={`/candidates/${m.candidate.id}`}><strong>{m.candidate.fullName}</strong></Link><div className="muted small">{m.job.title}</div></div><span className="scoreMini">{m.score}</span></div>)}</div></div>
-  <div className="card" style={{marginTop:16}}><div className="sectionHeader"><h2>Suivi en cours</h2><Link href="/actions">Centre d'actions →</Link></div>{activePipeline.length===0?<p className="muted">Aucun profil n'a encore été déplacé dans le pipeline.</p>:activePipeline.map(m=>{const planned=m.activities[0];return <div className="listRow" key={m.id}><div><Link href={`/candidates/${m.candidateId}`}><strong>{m.candidate.fullName}</strong></Link><div className="muted small">{m.job.title} · {stageLabel(m.stage)}{planned?` · ${planned.subject||planned.type}`:m.nextAction?` · ${m.nextAction}`:""}</div></div><span className="scoreMini">{m.score}</span></div>})}</div>
- </>;
+  const user=await requireUser();
+  const organizationId=user.organizationId;
+  const now=new Date();
+  const d7=new Date(now.getTime()+7*86400000);
+  const [jobCount,candidateCount,shortlisted,surveyResponseCount,dueActions,overdueActions,recentJobs,activePipeline]=await Promise.all([
+    prisma.job.count({where:{organizationId}}),
+    prisma.candidate.count({where:{organizationId}}),
+    prisma.match.count({where:{organizationId,stage:{in:["SHORTLIST","CONTACTED","INTERVIEW","CLIENT","OFFER","HIRED"]}}}),
+    prisma.candidateSurveyResponse.count({where:{survey:{organizationId}}}),
+    prisma.candidateActivity.count({where:{organizationId,status:"PLANNED",dueAt:{gte:now,lte:d7}}}),
+    prisma.candidateActivity.count({where:{organizationId,status:"PLANNED",dueAt:{lt:now}}}),
+    prisma.job.findMany({where:{organizationId},take:4,orderBy:{createdAt:"desc"},include:{matches:{where:{organizationId},select:{score:true}}}}),
+    prisma.match.findMany({where:{organizationId,stage:{not:"NEW"}},take:5,orderBy:{updatedAt:"desc"},include:{candidate:true,job:true,activities:{where:{status:"PLANNED"},orderBy:{dueAt:"asc"},take:1}}})
+  ]);
+
+  return <>
+    <section className="dashboardHero">
+      <div><div className="eyebrow">V2.6 · Intelligence du vivier</div><h1>Bonjour {user.fullName.split(" ")[0]}</h1><p className="muted">Voici l’essentiel de votre activité recrutement.</p></div>
+      <div className="heroActions"><Link className="btn" href="/jobs/new">Créer une mission</Link><Link className="btn secondary" href="/candidates/new">Importer des CV</Link><RecomputeAllButton/></div>
+    </section>
+
+    <section className="kpiRow">
+      <div className="kpiCard"><span>Missions</span><strong>{jobCount}</strong><small>actives et enregistrées</small></div>
+      <div className="kpiCard"><span>Candidats</span><strong>{candidateCount}</strong><small>dans le vivier</small></div>
+      <div className="kpiCard"><span>Profils en process</span><strong>{shortlisted}</strong><small>short-list et étapes suivantes</small></div>
+      <div className="kpiCard"><span>Actions à venir</span><strong>{dueActions}</strong><small>dans les 7 prochains jours</small></div>
+      <div className="kpiCard"><span>Relances en retard</span><strong>{overdueActions}</strong><small>à traiter</small></div>
+    </section>
+
+    <section className="dashboardGrid">
+      <div className="card intelligenceCard"><div className="sectionHeader"><div><div className="eyebrow">Intelligence</div><h2>Observer et décider plus vite</h2></div></div>
+        <div className="intelligenceList">
+          <Link href="/talent" className="featureTile"><strong>Talent & Tendances</strong><span>Structure du vivier, compétences, séniorité, écarts et potentiel sous-exploité.</span><em>Explorer le vivier →</em></Link>
+          <Link href="/experience" className="featureTile"><strong>Expérience candidat</strong><span>Retours, signaux faibles et qualité perçue du parcours.</span><em>{surveyResponseCount} retour(s) reçu(s) →</em></Link>
+          <Link href="/audit" className="featureTile"><strong>Audit & Actions</strong><span>Friction, causes probables et plans d’action recommandés.</span><em>Lancer un audit →</em></Link>
+        </div>
+      </div>
+
+      <div className="card"><div className="sectionHeader"><div><div className="eyebrow">Missions</div><h2>Activité récente</h2></div><Link href="/jobs">Tout voir →</Link></div>
+        {recentJobs.length===0?<p className="muted">Aucune mission récente.</p>:recentJobs.map(j=>{const best=j.matches.length?Math.max(...j.matches.map(m=>m.score)):null;return <div className="listRow" key={j.id}><div><Link href={`/jobs/${j.id}`}><strong>{j.title}</strong></Link><div className="muted small">{best==null?"Pas encore analysée":`Meilleur score ${best}/100`}</div></div><span>→</span></div>})}
+      </div>
+
+      <div className="card"><div className="sectionHeader"><div><div className="eyebrow">Suivi</div><h2>Priorités du moment</h2></div><Link href="/actions">Centre d’actions →</Link></div>
+        {activePipeline.length===0?<p className="muted">Aucun profil en suivi pour le moment.</p>:activePipeline.map(m=>{const planned=m.activities[0];return <div className="listRow" key={m.id}><div><Link href={`/candidates/${m.candidateId}`}><strong>{m.candidate.fullName}</strong></Link><div className="muted small">{m.job.title} · {stageLabel(m.stage)}{planned?` · ${planned.subject||planned.type}`:m.nextAction?` · ${m.nextAction}`:""}</div></div><span className="scoreMini">{m.score}</span></div>})}
+      </div>
+    </section>
+
+    <section className="workflowStrip"><div><strong>Observer</strong><span>Vivier et expérience candidat</span></div><b>→</b><div><strong>Diagnostiquer</strong><span>Frottements et écarts</span></div><b>→</b><div><strong>Agir</strong><span>Actions au bon moment</span></div><b>→</b><div><strong>Améliorer</strong><span>Qualité et performance</span></div></section>
+  </>;
 }
