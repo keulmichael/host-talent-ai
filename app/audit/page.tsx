@@ -15,7 +15,7 @@ export default async function CandidateExperienceAudit(){
   prisma.match.findMany({where:{organizationId},include:{candidate:true,job:true}}),
   prisma.candidateActivity.findMany({where:{organizationId},select:{id:true,matchId:true,status:true,dueAt:true,completedAt:true,createdAt:true}}),
   prisma.candidateSurvey.findMany({where:{organizationId},include:{response:true}}),
-  prisma.clientShare.findMany({where:{organizationId,active:true},include:{feedbacks:true},select:{id:true,createdAt:true,lastViewedAt:true,feedbacks:true}}),
+  prisma.clientShare.findMany({where:{organizationId,active:true},select:{id:true,createdAt:true,lastViewedAt:true,feedbacks:true}}),
   prisma.job.findMany({where:{organizationId},select:{id:true,title:true,clientName:true}})
  ]);
  const responses=surveys.filter(s=>s.response).map(s=>s.response!);
