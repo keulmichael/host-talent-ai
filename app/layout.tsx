@@ -15,11 +15,11 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return <html lang="fr"><body>
     {user ? <div className="appFrame">
       <aside className="sidebar">
-        <div className="sidebarBrand"><Link className="brand" href="/">HOST TALENT AI</Link><span>V2.6 · Intelligence du vivier</span></div>
+        <div className="sidebarBrand"><Link className="brand" href="/">HOST TALENT AI</Link><span>V2.7 · Observatoire Talent</span></div>
         <nav className="sideNav">
           <NavLink href="/">Tableau de bord</NavLink>
           <div className="navGroup"><div className="navLabel">Recrutement</div><NavLink href="/jobs">Missions</NavLink><NavLink href="/pipeline">Pipeline</NavLink><NavLink href="/actions">Actions</NavLink></div>
-          <div className="navGroup"><div className="navLabel">Intelligence</div><NavLink href="/talent">Tendances vivier</NavLink><NavLink href="/audit">Audit candidat</NavLink><NavLink href="/experience">Expérience candidat</NavLink></div>
+          <div className="navGroup"><div className="navLabel">Intelligence</div><NavLink href="/talent">Observatoire Talent</NavLink><NavLink href="/audit">Audit candidat</NavLink><NavLink href="/experience">Expérience candidat</NavLink></div>
           <div className="navGroup"><div className="navLabel">Données</div><NavLink href="/candidates">Vivier candidats</NavLink><NavLink href="/search">Recherche</NavLink><NavLink href="/candidates/new">Importer des CV</NavLink></div>
           {user.role === "ADMIN" && <div className="navGroup"><div className="navLabel">Paramètres</div><NavLink href="/admin/automation">Automatisation</NavLink><NavLink href="/admin/users">Utilisateurs</NavLink><NavLink href="/admin/privacy">Confidentialité</NavLink><NavLink href="/admin/audit">Journal</NavLink></div>}
         </nav>
