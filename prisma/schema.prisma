@@ -25,6 +25,7 @@ model Organization {
   messageTemplates          MessageTemplate[]
   webhookEndpoints          WebhookEndpoint[]
   candidateSurveys          CandidateSurvey[]
+  talentSnapshots           TalentSnapshot[]
 }
 
 model User {
@@ -247,6 +248,24 @@ model CandidateSurveyResponse {
   survey CandidateSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
+}
+
+model TalentSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String
+  snapshotDate   DateTime
+  candidateCount Int
+  jobCount       Int
+  matchCoverage  Int
+  skillCount     Int
+  payload        Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, snapshotDate])
+  @@index([organizationId, snapshotDate])
 }
 
 model ClientShare {
