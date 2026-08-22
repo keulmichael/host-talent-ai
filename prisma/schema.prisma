@@ -18,6 +18,7 @@ model Organization {
   users           User[]
   auditLogs       AuditLog[]
   clientShares    ClientShare[]
+  candidateActivities CandidateActivity[]
 }
 
 model User {
@@ -34,6 +35,7 @@ model User {
   sessions       Session[]
   auditLogs      AuditLog[]
   clientShares   ClientShare[]
+  candidateActivities CandidateActivity[]
 
   @@index([organizationId])
 }
@@ -107,6 +109,7 @@ model Candidate {
   createdAt         DateTime @default(now())
   organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   matches           Match[]
+  activities        CandidateActivity[]
 
   @@index([organizationId])
   @@index([organizationId, email])
@@ -126,6 +129,7 @@ model Match {
   stage          String    @default("NEW")
   recruiterNote  String?
   nextAction     String?
+  candidateInterest String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -133,11 +137,39 @@ model Match {
   job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidate    Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   feedbacks    ClientFeedback[]
+  activities   CandidateActivity[]
 
   @@unique([jobId, candidateId])
   @@index([organizationId])
   @@index([stage])
   @@index([score])
+}
+
+model CandidateActivity {
+  id             String   @id @default(cuid())
+  organizationId String
+  candidateId    String
+  matchId        String?
+  createdById    String?
+  type           String   @default("NOTE")
+  channel        String   @default("EMAIL")
+  status         String   @default("PLANNED")
+  priority       String   @default("NORMAL")
+  subject        String?
+  body           String?
+  dueAt          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  candidate    Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  match        Match?       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, dueAt])
+  @@index([candidateId, createdAt])
+  @@index([matchId, createdAt])
+  @@index([status, dueAt])
 }
 
 model ClientShare {
