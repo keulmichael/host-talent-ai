@@ -24,6 +24,7 @@ model Organization {
   candidateActivities       CandidateActivity[]
   messageTemplates          MessageTemplate[]
   webhookEndpoints          WebhookEndpoint[]
+  candidateSurveys          CandidateSurvey[]
 }
 
 model User {
@@ -41,6 +42,7 @@ model User {
   auditLogs      AuditLog[]
   clientShares   ClientShare[]
   candidateActivities CandidateActivity[]
+  candidateSurveys CandidateSurvey[]
 
   @@index([organizationId])
 }
@@ -143,6 +145,7 @@ model Match {
   candidate    Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   feedbacks    ClientFeedback[]
   activities   CandidateActivity[]
+  surveys      CandidateSurvey[]
 
   @@unique([jobId, candidateId])
   @@index([organizationId])
@@ -205,6 +208,45 @@ model WebhookEndpoint {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+}
+
+model CandidateSurvey {
+  id             String   @id @default(cuid())
+  organizationId String
+  matchId        String
+  createdById    String?
+  tokenHash      String   @unique
+  step           String   @default("PROCESS")
+  active         Boolean  @default(true)
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  lastViewedAt   DateTime?
+  viewCount      Int      @default(0)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  match        Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  response     CandidateSurveyResponse?
+
+  @@index([organizationId, createdAt])
+  @@index([matchId])
+  @@index([expiresAt])
+}
+
+model CandidateSurveyResponse {
+  id             String   @id @default(cuid())
+  surveyId       String   @unique
+  clarity        Int
+  responsiveness Int
+  respect        Int
+  transparency   Int
+  recommendation Int
+  comment        String?
+  createdAt      DateTime @default(now())
+
+  survey CandidateSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
 }
 
 model ClientShare {
