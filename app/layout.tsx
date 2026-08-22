@@ -15,6 +15,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <Link href="/jobs">Missions</Link>
       <Link href="/pipeline">Pipeline</Link>
       <Link href="/actions">Actions</Link>
+      <Link href="/experience">Expérience candidat</Link>
       <Link href="/search">Recherche</Link>
       <Link href="/candidates">Vivier</Link>
       <Link href="/jobs/new">Nouvelle mission</Link>
