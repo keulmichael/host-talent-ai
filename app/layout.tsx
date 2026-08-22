@@ -14,10 +14,12 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <Link href="/">Dashboard</Link>
       <Link href="/jobs">Missions</Link>
       <Link href="/pipeline">Pipeline</Link>
+      <Link href="/actions">Actions</Link>
       <Link href="/search">Recherche</Link>
       <Link href="/candidates">Vivier</Link>
       <Link href="/jobs/new">Nouvelle mission</Link>
       <Link href="/candidates/new">Importer CV</Link>
+      {user.role === "ADMIN" && <Link href="/admin/automation">Automatisation</Link>}
       {user.role === "ADMIN" && <Link href="/admin/users">Utilisateurs</Link>}
       {user.role === "ADMIN" && <Link href="/admin/privacy">Confidentialité</Link>}
       {user.role === "ADMIN" && <Link href="/admin/audit">Journal</Link>}
