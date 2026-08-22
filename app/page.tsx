@@ -24,8 +24,8 @@ export default async function Dashboard(){
 
   return <>
     <section className="dashboardHero">
-      <div><div className="eyebrow">V2.6 · Intelligence du vivier</div><h1>Bonjour {user.fullName.split(" ")[0]}</h1><p className="muted">Voici l’essentiel de votre activité recrutement.</p></div>
-      <div className="heroActions"><Link className="btn" href="/jobs/new">Créer une mission</Link><Link className="btn secondary" href="/candidates/new">Importer des CV</Link><RecomputeAllButton/></div>
+      <div><div className="eyebrow">V2.7 · Observatoire Talent</div><h1>Bonjour {user.fullName.split(" ")[0]}</h1><p className="muted">Pilotez le recrutement et observez les déséquilibres entre missions et vivier.</p></div>
+      <div className="heroActions"><Link className="btn" href="/jobs/new">Créer une mission</Link><Link className="btn secondary" href="/talent">Observatoire Talent</Link><RecomputeAllButton/></div>
     </section>
 
     <section className="kpiRow">
@@ -37,9 +37,9 @@ export default async function Dashboard(){
     </section>
 
     <section className="dashboardGrid">
-      <div className="card intelligenceCard"><div className="sectionHeader"><div><div className="eyebrow">Intelligence</div><h2>Observer et décider plus vite</h2></div></div>
+      <div className="card intelligenceCard"><div className="sectionHeader"><div><div className="eyebrow">Intelligence</div><h2>Observer avant d'agir</h2></div></div>
         <div className="intelligenceList">
-          <Link href="/talent" className="featureTile"><strong>Talent & Tendances</strong><span>Structure du vivier, compétences, séniorité, écarts et potentiel sous-exploité.</span><em>Explorer le vivier →</em></Link>
+          <Link href="/talent" className="featureTile"><strong>Observatoire Talent</strong><span>Demande des missions, offre brute, offre qualifiée, tensions et potentiel sous-exploité.</span><em>Observer le marché du cabinet →</em></Link>
           <Link href="/experience" className="featureTile"><strong>Expérience candidat</strong><span>Retours, signaux faibles et qualité perçue du parcours.</span><em>{surveyResponseCount} retour(s) reçu(s) →</em></Link>
           <Link href="/audit" className="featureTile"><strong>Audit & Actions</strong><span>Friction, causes probables et plans d’action recommandés.</span><em>Lancer un audit →</em></Link>
         </div>
@@ -54,6 +54,6 @@ export default async function Dashboard(){
       </div>
     </section>
 
-    <section className="workflowStrip"><div><strong>Observer</strong><span>Vivier et expérience candidat</span></div><b>→</b><div><strong>Diagnostiquer</strong><span>Frottements et écarts</span></div><b>→</b><div><strong>Agir</strong><span>Actions au bon moment</span></div><b>→</b><div><strong>Améliorer</strong><span>Qualité et performance</span></div></section>
+    <section className="workflowStrip"><div><strong>Observer</strong><span>Offre, demande et expérience candidat</span></div><b>→</b><div><strong>Diagnostiquer</strong><span>Tensions, écarts et frictions</span></div><b>→</b><div><strong>Agir</strong><span>Sourcing et actions au bon moment</span></div><b>→</b><div><strong>Améliorer</strong><span>Qualité et performance</span></div></section>
   </>;
 }
