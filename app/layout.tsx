@@ -17,6 +17,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <Link href="/actions">Actions</Link>
       <Link href="/audit">Audit</Link>
       <Link href="/experience">Expérience candidat</Link>
+      <Link href="/talent">Tendances vivier</Link>
       <Link href="/search">Recherche</Link>
       <Link href="/candidates">Vivier</Link>
       <Link href="/jobs/new">Nouvelle mission</Link>
