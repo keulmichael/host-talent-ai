@@ -8,17 +8,22 @@ datasource db {
 }
 
 model Organization {
-  id              String      @id
-  name            String
-  retentionMonths Int         @default(24)
-  createdAt       DateTime    @default(now())
-  jobs            Job[]
-  candidates      Candidate[]
-  matches         Match[]
-  users           User[]
-  auditLogs       AuditLog[]
-  clientShares    ClientShare[]
-  candidateActivities CandidateActivity[]
+  id                        String      @id
+  name                      String
+  retentionMonths           Int         @default(24)
+  candidateResponseSlaHours Int         @default(24)
+  interviewFollowupSlaHours Int         @default(48)
+  clientFeedbackSlaHours    Int         @default(72)
+  createdAt                 DateTime    @default(now())
+  jobs                      Job[]
+  candidates                Candidate[]
+  matches                   Match[]
+  users                     User[]
+  auditLogs                 AuditLog[]
+  clientShares              ClientShare[]
+  candidateActivities       CandidateActivity[]
+  messageTemplates          MessageTemplate[]
+  webhookEndpoints          WebhookEndpoint[]
 }
 
 model User {
@@ -170,6 +175,36 @@ model CandidateActivity {
   @@index([candidateId, createdAt])
   @@index([matchId, createdAt])
   @@index([status, dueAt])
+}
+
+model MessageTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  type           String
+  name           String
+  subject        String
+  body           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+  @@index([organizationId])
+}
+
+model WebhookEndpoint {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  url            String
+  events         String   @default("candidate.activity.validated")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
 model ClientShare {
