@@ -1,0 +1,3 @@
+"use client";
+import {useState} from "react";
+export default function CommercialPrequalButton({candidateId}:{candidateId:string}){const [copied,setCopied]=useState(false);async function copy(){const r=await fetch(`/api/candidates/${candidateId}/prequalification-link`,{method:"POST"});if(!r.ok)return alert("Impossible de créer le lien");const j=await r.json();await navigator.clipboard.writeText(j.url);setCopied(true);setTimeout(()=>setCopied(false),1800);}return <button className="btn secondary" onClick={copy}>{copied?"Lien copié ✓":"Copier le lien de préqualification"}</button>;}
