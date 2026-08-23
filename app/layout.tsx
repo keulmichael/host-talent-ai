@@ -19,7 +19,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
         <div className="sidebarBrand"><Link className="brand" href="/">HOST TALENT AI</Link><span>L’IA au service de vos recrutements</span></div>
         <nav className="sideNav">
           <NavLink href="/">Tableau de bord</NavLink>
-          <div className="navGroup"><div className="navLabel">Recrutement</div><NavLink href="/jobs">Missions</NavLink><NavLink href="/pipeline">Pipeline</NavLink><NavLink href="/actions">Actions</NavLink></div>
+          <div className="navGroup"><div className="navLabel">Recrutement</div><NavLink href="/jobs">Missions</NavLink><NavLink href="/pipeline">Pipeline</NavLink><NavLink href="/actions">Actions</NavLink><NavLink href="/prequalifications">Préqualification</NavLink></div>
           <div className="navGroup"><div className="navLabel">Observatoires</div><NavLink href="/market">Observatoire général</NavLink><NavLink href="/talent">Observatoire Talent</NavLink><NavLink href="/experience">Expérience candidat</NavLink><NavLink href="/audit">Audit candidat</NavLink></div>
           <div className="navGroup"><div className="navLabel">Données</div><NavLink href="/candidates">Vivier candidats</NavLink><NavLink href="/search">Recherche</NavLink><NavLink href="/candidates/new">Importer des CV</NavLink></div>
           {user.role === "ADMIN" && <div className="navGroup"><div className="navLabel">Paramètres</div><NavLink href="/admin/automation">Automatisation</NavLink><NavLink href="/admin/users">Utilisateurs</NavLink><NavLink href="/admin/privacy">Confidentialité</NavLink><NavLink href="/admin/audit">Journal</NavLink></div>}
