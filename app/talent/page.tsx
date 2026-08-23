@@ -3,6 +3,7 @@ import {prisma} from "../lib/db";
 import {requireUser} from "../lib/auth";
 import {buildTalentObservatory} from "../lib/talentTrends";
 import {getTalentHistory,recordTalentSnapshot} from "../lib/talentHistory";
+import {ComparisonBars} from "../components/InsightCharts";
 export const dynamic="force-dynamic";
 
 function tensionClass(t:string){return t==="Forte"?"warningText":t==="Modérée"?"scoreMini":t==="Abondance"?"successText":"muted"}
@@ -18,12 +19,15 @@ export default async function TalentObservatory(){
  await recordTalentSnapshot(user.organizationId,t);
  const history=await getTalentHistory(user.organizationId,t.market);
  const activeTrend=history.trend30.available?history.trend30:history.trend90.available?history.trend90:null;
+ const demandVsQualified=t.market.filter(x=>x.demand>0).slice(0,10).map(x=>({label:x.name,primary:x.demand,secondary:x.qualified,meta:`${x.tension} · ${x.ratio} qualifié(s)/mission`}));
  return <>
   <div className="hero"><div><div className="eyebrow">V2.7 · OBSERVATOIRE TALENT</div><h1>Comprendre le marché interne du cabinet.</h1><p className="muted">L'Observatoire Talent croise les CV, les missions et les matchings pour mesurer la disponibilité réelle des compétences, repérer les tensions et identifier le potentiel sous-exploité du vivier.</p></div><div className="actions"><Link className="btn secondary" href="/market">Observatoire général</Link><Link className="btn secondary" href="/candidates">Vivier</Link><Link className="btn secondary" href="/jobs">Missions</Link></div></div>
 
   {t.matchCoverage<90&&<div className="card" style={{marginBottom:20}}><strong className="warningText">Analyse provisoire · matching {t.matchCoverage}% couvert</strong><p className="muted" style={{marginBottom:0}}>Les indicateurs de tension deviennent fiables lorsque le recalcul candidat × mission est terminé. Les volumes bruts restent utilisables.</p></div>}
 
   <div className="kpiGrid"><div className="card kpiCard"><div className="muted">Candidats analysés</div><div className="score">{t.candidateCount}</div></div><div className="card kpiCard"><div className="muted">Missions analysées</div><div className="score">{t.jobCount}</div></div><div className="card kpiCard"><div className="muted">Compétences / familles</div><div className="score">{t.skillCount}</div></div><div className="card kpiCard"><div className="muted">Tensions détectées</div><div className="score">{t.tensions.length}</div></div><div className="card kpiCard"><div className="muted">Jours historisés</div><div className="score">{history.historyDays}</div><div className="small muted">{history.snapshotCount} snapshot(s)</div></div></div>
+
+  <ComparisonBars title="Demande vs offre qualifiée" description="Pour chaque compétence, compare le nombre de missions concernées au nombre de candidats ayant un matching ≥ 70 sur au moins une mission correspondante." items={demandVsQualified}/>
 
   <div className="card sectionCard"><div className="sectionHeader"><div><h2>Tension du marché interne</h2><p className="muted">Ratio = candidats qualifiés (score ≥ 70 sur une mission concernée) ÷ missions demandant la compétence.</p></div></div><div className="tableWrap"><table><thead><tr><th>Compétence / famille</th><th>Demande</th><th>Offre brute</th><th>Offre qualifiée</th><th>Qualifiés / mission</th><th>Tension</th></tr></thead><tbody>{t.market.filter(x=>x.demand>0).slice(0,20).map(x=><tr key={x.name}><td><strong>{x.name}</strong></td><td>{x.demand}</td><td>{x.supply}</td><td>{x.qualified}</td><td>{x.ratio}</td><td className={tensionClass(x.tension)}><strong>{x.tension}</strong></td></tr>)}</tbody></table></div><details className="opsDetails"><summary>Comprendre l'indice de tension</summary><p className="muted">Forte : moins de 1 candidat qualifié par mission. Modérée : de 1 à moins de 2. Équilibrée : de 2 à 4. Abondance : plus de 4. L'absence de preuve dans un CV ne signifie pas incompatibilité : l'indice mesure uniquement les informations structurées et les matchings disponibles.</p></details></div>
 
