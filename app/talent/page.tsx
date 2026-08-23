@@ -3,11 +3,14 @@ import {prisma} from "../lib/db";
 import {requireUser} from "../lib/auth";
 import {buildTalentObservatory} from "../lib/talentTrends";
 import {getTalentHistory,recordTalentSnapshot} from "../lib/talentHistory";
+import {EXTERNAL_TRENDS,INDEED_2026_SOURCE,MARKET_OPPORTUNITIES} from "../lib/externalMarketTrends";
 export const dynamic="force-dynamic";
 
 function tensionClass(t:string){return t==="Forte"?"warningText":t==="Modérée"?"scoreMini":t==="Abondance"?"successText":"muted"}
 function changeLabel(v:number|null){if(v===null)return"nouveau";if(v===0)return"stable";return`${v>0?"+":""}${v}%`}
 function changeClass(v:number|null){if(v===null)return"scoreMini";if(v>0)return"warningText";if(v<0)return"successText";return"muted"}
+function trendTone(direction:string){return direction==="up"?"marketUp":direction==="down"?"marketDown":direction==="alert"?"marketAlert":"marketStable"}
+function opportunityTone(strength:string){return strength==="fort"?"opportunityStrong":strength==="moyen"?"opportunityMedium":"opportunityExplore"}
 export default async function TalentObservatory(){
  const user=await requireUser();
  const [candidates,jobs]=await Promise.all([
@@ -19,9 +22,20 @@ export default async function TalentObservatory(){
  const history=await getTalentHistory(user.organizationId,t.market);
  const activeTrend=history.trend30.available?history.trend30:history.trend90.available?history.trend90:null;
  return <>
-  <div className="hero"><div><div className="eyebrow">V2.7 · OBSERVATOIRE TALENT</div><h1>Observer les déséquilibres du marché du cabinet.</h1><p className="muted">L'Observatoire croise la demande des missions, l'offre du vivier et les matchings, puis conserve un snapshot quotidien pour faire émerger les évolutions 30/90 jours sans inventer de tendance.</p></div><div className="actions"><Link className="btn secondary" href="/candidates">Vivier</Link><Link className="btn secondary" href="/jobs">Missions</Link></div></div>
+  <div className="hero"><div><div className="eyebrow">V2.7 · OBSERVATOIRE TALENT</div><h1>Observer le marché interne et les mouvements de l’emploi.</h1><p className="muted">L'Observatoire croise le vivier du cabinet avec ses missions, puis le replace dans un contexte emploi plus large pour faire émerger des pistes de sourcing et de nouveaux marchés.</p></div><div className="actions"><Link className="btn secondary" href="/candidates">Vivier</Link><Link className="btn secondary" href="/jobs">Missions</Link></div></div>
+
+  <div className="marketContextHero">
+    <div><div className="eyebrow">MARCHÉ EXTERNE · FRANCE</div><h2>Tendances générales de l’emploi</h2><p>Une lecture synthétique de l’étude Indeed Hiring Lab pour replacer les données du cabinet dans leur environnement économique.</p></div>
+    <div className="marketSource"><strong>{INDEED_2026_SOURCE.title}</strong><span>{INDEED_2026_SOURCE.scope}</span><span>Publié le {INDEED_2026_SOURCE.publishedAt}</span><a href={INDEED_2026_SOURCE.url} target="_blank" rel="noreferrer">Consulter l’étude source ↗</a></div>
+  </div>
+
+  <div className="marketTrendGrid">{EXTERNAL_TRENDS.map(x=><div className={`marketTrendCard ${trendTone(x.direction)}`} key={x.id}><div className="marketTrendTop"><span className="marketDot"/><span>{x.title}</span></div><div className="marketValue">{x.value}</div><p>{x.context}</p><div className="marketImplication"><strong>Lecture cabinet</strong><span>{x.implication}</span></div></div>)}</div>
+
+  <div className="card sectionCard marketOpportunitySection"><div className="sectionHeader"><div><div className="eyebrow">DÉVELOPPEMENT COMMERCIAL</div><h2>Pistes de nouveaux marchés pour le cabinet</h2><p className="muted">Ces pistes sont des interprétations commerciales des signaux publiés par Indeed. Elles ne constituent pas une prévision de marché et doivent être croisées avec les données propres du cabinet.</p></div></div><div className="opportunityGrid">{MARKET_OPPORTUNITIES.map(x=><div className={`opportunityCard ${opportunityTone(x.strength)}`} key={x.id}><div className="opportunityHeader"><strong>{x.market}</strong><span>{x.strength==="fort"?"Priorité forte":x.strength==="moyen"?"À explorer":"Exploratoire"}</span></div><p className="opportunitySignal">{x.signal}</p><div className="opportunityReason"><span>Pourquoi maintenant</span><p>{x.why}</p></div><div className="opportunityPlay"><span>Offre à tester</span><p>{x.play}</p></div></div>)}</div></div>
 
   {t.matchCoverage<90&&<div className="card" style={{marginBottom:20}}><strong className="warningText">Analyse provisoire · matching {t.matchCoverage}% couvert</strong><p className="muted" style={{marginBottom:0}}>Les indicateurs de tension deviennent fiables lorsque le recalcul candidat × mission est terminé. Les volumes bruts restent utilisables.</p></div>}
+
+  <div className="sectionDivider"><span>Marché interne du cabinet</span></div>
 
   <div className="kpiGrid"><div className="card kpiCard"><div className="muted">Candidats analysés</div><div className="score">{t.candidateCount}</div></div><div className="card kpiCard"><div className="muted">Missions analysées</div><div className="score">{t.jobCount}</div></div><div className="card kpiCard"><div className="muted">Compétences / familles</div><div className="score">{t.skillCount}</div></div><div className="card kpiCard"><div className="muted">Tensions détectées</div><div className="score">{t.tensions.length}</div></div><div className="card kpiCard"><div className="muted">Jours historisés</div><div className="score">{history.historyDays}</div><div className="small muted">{history.snapshotCount} snapshot(s)</div></div></div>
 
@@ -35,6 +49,6 @@ export default async function TalentObservatory(){
 
   <div className="grid sectionGrid"><div className="card"><h2>Structure du vivier</h2><div className="listRow"><span>Expérience moyenne</span><strong>{t.averageExperience??"—"}{t.averageExperience!=null?" ans":""}</strong></div><div className="listRow"><span>Junior · &lt; 3 ans</span><strong>{t.seniority.junior}</strong></div><div className="listRow"><span>Confirmé · 3–6 ans</span><strong>{t.seniority.confirmed}</strong></div><div className="listRow"><span>Senior · ≥ 7 ans</span><strong>{t.seniority.senior}</strong></div><div className="listRow"><span>À confirmer</span><strong>{t.seniority.unknown}</strong></div></div><div className="card"><h2>Mémoire de l'Observatoire</h2><p className="muted">Un snapshot est conservé au maximum une fois par jour et par organisation. Il contient uniquement des agrégats du vivier et des missions, pas de nouveau CV ni de donnée candidat supplémentaire.</p><div className="listRow"><span>Premier snapshot</span><strong>{history.firstSnapshotDate?history.firstSnapshotDate.toLocaleDateString("fr-FR"):"Aujourd'hui"}</strong></div><div className="listRow"><span>Snapshots disponibles</span><strong>{history.snapshotCount}</strong></div><div className="listRow"><span>Fenêtre 30 jours</span><strong>{history.trend30.available?"Disponible":"En constitution"}</strong></div><div className="listRow"><span>Fenêtre 90 jours</span><strong>{history.trend90.available?"Disponible":"En constitution"}</strong></div></div></div>
 
-  <div className="card sectionCard"><h2>Méthodologie</h2><p className="muted">Cet Observatoire décrit le micro-marché du cabinet à partir des CV, missions, matchings et snapshots agrégés présents dans Host Talent AI. Il ne représente pas encore le marché externe de l'emploi. Une compétence absente d'un CV peut simplement ne pas y être explicitée ; les métriques servent à prioriser la revue humaine, le sourcing et la stratégie commerciale.</p></div>
+  <div className="card sectionCard"><h2>Méthodologie</h2><p className="muted">L’Observatoire distingue deux niveaux. Le marché externe reprend des indicateurs publiés et datés par Indeed Hiring Lab ; les pistes commerciales sont des interprétations de Host Talent AI. Le marché interne décrit le micro-marché du cabinet à partir des CV, missions, matchings et snapshots agrégés. Une compétence absente d'un CV peut simplement ne pas y être explicitée ; les métriques servent à prioriser la revue humaine, le sourcing et la stratégie commerciale.</p></div>
  </>;
 }
