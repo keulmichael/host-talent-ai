@@ -5,7 +5,8 @@ import crypto from "crypto";
 
 export async function POST(req:Request){
  const user=await apiUser();if(!user)return NextResponse.json({error:"Authentification requise"},{status:401});
- const body=await req.json();const ids=Array.isArray(body.candidateIds)?[...new Set(body.candidateIds.map(String))].slice(0,200):[];
+ const body=await req.json();
+ const ids:string[]=Array.isArray(body.candidateIds)?Array.from(new Set<string>(body.candidateIds.map((v:unknown)=>String(v)))).slice(0,200):[];
  if(!ids.length)return NextResponse.json({error:"Aucun candidat sélectionné"},{status:400});
  const candidates=await prisma.candidate.findMany({where:{organizationId:user.organizationId,id:{in:ids}},select:{id:true,fullName:true}});
  const secret=process.env.AUTH_SECRET||process.env.NEXTAUTH_SECRET||"";if(!secret)return NextResponse.json({error:"Secret serveur manquant"},{status:500});
