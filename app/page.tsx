@@ -36,7 +36,7 @@ export default async function Dashboard(){
     if(!current||priority.reviewRank>current.priority.reviewRank)bestByCandidate.set(m.candidateId,{match:m,priority});
   }
   const reviewQueue=[...bestByCandidate.values()]
-    .filter(x=>x.priority.isPriority||x.priority.needsValidation)
+    .filter(x=>x.priority.isPriority&&(x.priority.needsCriticalValidation||x.priority.needsUsefulValidation))
     .sort((a,b)=>b.priority.reviewRank-a.priority.reviewRank)
     .slice(0,8);
 
@@ -45,7 +45,7 @@ export default async function Dashboard(){
     {label:"Adéquations pertinentes",value:newSummary.relevant,meta:"score ≥ 60, encore hors pipeline métier"},
     {label:"Matchings prioritaires",value:newSummary.priorityMatches,meta:"score ≥ 75"},
     {label:"Candidats prioritaires uniques",value:newSummary.priorityCandidates,meta:"candidats dédupliqués"},
-    {label:"Validations humaines",value:newSummary.validationCandidates,meta:"points manquants ou questions à confirmer"}
+    {label:"Validations métier",value:newSummary.validationCandidates,meta:"critères pouvant réellement modifier la décision"}
   ];
 
   return <>
@@ -58,16 +58,17 @@ export default async function Dashboard(){
       <div className="kpiCard"><span>Matchings analysés</span><strong>{summary.analyzed}</strong><small>analysés automatiquement</small></div>
       <div className="kpiCard"><span>Adéquations pertinentes</span><strong>{newSummary.relevant}</strong><small>score ≥ 60, hors pipeline</small></div>
       <div className="kpiCard"><span>Candidats prioritaires</span><strong>{newSummary.priorityCandidates}</strong><small>uniques, score ≥ 75</small></div>
-      <div className="kpiCard"><span>À valider humainement</span><strong>{newSummary.validationCandidates}</strong><small>uniques, avec points à confirmer</small></div>
+      <div className="kpiCard"><span>Validation métier</span><strong>{newSummary.validationCandidates}</strong><small>critique ou utile à la décision</small></div>
+      <div className="kpiCard"><span>Infos commerciales</span><strong>{newSummary.commercialCandidates}</strong><small>disponibilité, TJM, salaire… à compléter</small></div>
       <div className="kpiCard"><span>Profils en process</span><strong>{shortlisted}</strong><small>short-list et étapes suivantes</small></div>
     </section>
 
-    <HorizontalBars title="Entonnoir de tri automatique" description="Les milliers de matchings ne sont plus une liste de travail manuelle : le moteur réduit progressivement le volume jusqu’aux candidats réellement utiles à examiner." items={funnel}/>
+    <HorizontalBars title="Entonnoir de tri automatique" description="Les milliers de matchings ne sont plus une liste de travail manuelle : le moteur réduit progressivement le volume et réserve la validation humaine aux informations qui peuvent modifier une décision." items={funnel}/>
 
-    <section className="card sectionCard"><div className="sectionHeader"><div><div className="eyebrow">REVUE HUMAINE CIBLÉE</div><h2>À examiner en priorité</h2><p className="muted">Un seul meilleur matching est remonté par candidat. Aucun profil n’est déplacé automatiquement dans le pipeline.</p></div></div>
-      {reviewQueue.length===0?<p className="muted">Aucun cas prioritaire à revoir pour le moment.</p>:reviewQueue.map(({match:m,priority})=><div className="reviewQueueRow" key={m.id}>
+    <section className="card sectionCard"><div className="sectionHeader"><div><div className="eyebrow">REVUE HUMAINE CIBLÉE</div><h2>À examiner en priorité</h2><p className="muted">Seuls les profils prioritaires avec un critère métier critique ou utile à confirmer remontent ici. Les informations commerciales restent à compléter séparément et ne bloquent pas l’adéquation CV.</p></div></div>
+      {reviewQueue.length===0?<p className="muted">Aucun cas prioritaire nécessitant une validation métier pour le moment.</p>:reviewQueue.map(({match:m,priority})=><div className="reviewQueueRow" key={m.id}>
         <div className="reviewQueueMain"><Link href={`/candidates/${m.candidate.id}`}><strong>{m.candidate.fullName}</strong></Link><span>{m.job.title}</span><small>{priority.reason}</small></div>
-        <div className="reviewQueueMeta"><span className="scoreMini">{m.score}/100</span><span className={priority.needsValidation?"reviewBadge warning":"reviewBadge success"}>{priority.needsValidation?"Validation requise":"Prioritaire"}</span></div>
+        <div className="reviewQueueMeta"><span className="scoreMini">{m.score}/100</span><span className="reviewBadge warning">{priority.needsCriticalValidation?"Validation critique":"Validation utile"}</span></div>
         <div className="reviewQueueAction"><Link className="btn secondary" href={`/jobs/${m.job.id}`}>Examiner dans la mission</Link></div>
       </div>)}
     </section>
@@ -91,6 +92,6 @@ export default async function Dashboard(){
       </div>
     </section>
 
-    <section className="workflowStrip"><div><strong>Analyser</strong><span>Tous les matchings automatiquement</span></div><b>→</b><div><strong>Prioriser</strong><span>Scores, preuves et points à confirmer</span></div><b>→</b><div><strong>Valider</strong><span>L’humain examine seulement les cas utiles</span></div><b>→</b><div><strong>Agir</strong><span>Short-list et pipeline restent humains</span></div></section>
+    <section className="workflowStrip"><div><strong>Analyser</strong><span>Tous les matchings automatiquement</span></div><b>→</b><div><strong>Prioriser</strong><span>Scores, preuves et critères déterminants</span></div><b>→</b><div><strong>Valider</strong><span>L’humain tranche uniquement les points métier utiles</span></div><b>→</b><div><strong>Compléter</strong><span>Les données commerciales restent distinctes</span></div></section>
   </>;
 }
