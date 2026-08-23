@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { prisma } from "./lib/db";
-import { PIPELINE_STAGES, stageLabel } from "./lib/pipeline";
+import { stageLabel } from "./lib/pipeline";
 import { requireUser } from "./lib/auth";
+import { classifyMatch, summarizeMatches } from "./lib/matchPriority";
 import RecomputeAllButton from "./RecomputeAllButton";
 import {HorizontalBars} from "./components/InsightCharts";
 
@@ -12,7 +13,7 @@ export default async function Dashboard(){
   const organizationId=user.organizationId;
   const now=new Date();
   const d7=new Date(now.getTime()+7*86400000);
-  const [jobCount,candidateCount,shortlisted,surveyResponseCount,dueActions,overdueActions,recentJobs,activePipeline,stageMatches]=await Promise.all([
+  const [jobCount,candidateCount,shortlisted,surveyResponseCount,dueActions,overdueActions,recentJobs,activePipeline,allMatches]=await Promise.all([
     prisma.job.count({where:{organizationId}}),
     prisma.candidate.count({where:{organizationId}}),
     prisma.match.count({where:{organizationId,stage:{in:["SHORTLIST","CONTACTED","INTERVIEW","CLIENT","OFFER","HIRED"]}}}),
@@ -21,35 +22,62 @@ export default async function Dashboard(){
     prisma.candidateActivity.count({where:{organizationId,status:"PLANNED",dueAt:{lt:now}}}),
     prisma.job.findMany({where:{organizationId},take:4,orderBy:{createdAt:"desc"},include:{matches:{where:{organizationId},select:{score:true}}}}),
     prisma.match.findMany({where:{organizationId,stage:{not:"NEW"}},take:5,orderBy:{updatedAt:"desc"},include:{candidate:true,job:true,activities:{where:{status:"PLANNED"},orderBy:{dueAt:"asc"},take:1}}}),
-    prisma.match.findMany({where:{organizationId},select:{stage:true}})
+    prisma.match.findMany({where:{organizationId},select:{id:true,candidateId:true,jobId:true,score:true,missing:true,questions:true,stage:true,candidate:{select:{id:true,fullName:true}},job:{select:{id:true,title:true}}}})
   ]);
-  const stageCounts=new Map<string,number>();
-  for(const m of stageMatches)stageCounts.set(m.stage,(stageCounts.get(m.stage)||0)+1);
-  const pipelineChart=PIPELINE_STAGES.filter(s=>s.value!=="REJECTED").map(s=>({label:s.label,value:stageCounts.get(s.value)||0,meta:s.value==="NEW"?"Profils à examiner":"Profils dans cette étape"}));
+
+  const summary=summarizeMatches(allMatches);
+  const newMatches=allMatches.filter(m=>m.stage==="NEW");
+  const newSummary=summarizeMatches(newMatches);
+  const bestByCandidate=new Map<string,{match:typeof newMatches[number];priority:ReturnType<typeof classifyMatch>}>();
+  for(const m of newMatches){
+    const priority=classifyMatch(m);
+    if(!priority.isRelevant)continue;
+    const current=bestByCandidate.get(m.candidateId);
+    if(!current||priority.reviewRank>current.priority.reviewRank)bestByCandidate.set(m.candidateId,{match:m,priority});
+  }
+  const reviewQueue=[...bestByCandidate.values()]
+    .filter(x=>x.priority.isPriority||x.priority.needsValidation)
+    .sort((a,b)=>b.priority.reviewRank-a.priority.reviewRank)
+    .slice(0,8);
+
+  const funnel=[
+    {label:"Matchings analysés",value:summary.analyzed,meta:"couples candidat × mission évalués automatiquement"},
+    {label:"Adéquations pertinentes",value:newSummary.relevant,meta:"score ≥ 60, encore hors pipeline métier"},
+    {label:"Matchings prioritaires",value:newSummary.priorityMatches,meta:"score ≥ 75"},
+    {label:"Candidats prioritaires uniques",value:newSummary.priorityCandidates,meta:"candidats dédupliqués"},
+    {label:"Validations humaines",value:newSummary.validationCandidates,meta:"points manquants ou questions à confirmer"}
+  ];
 
   return <>
     <section className="dashboardHero">
-      <div><div className="eyebrow">V2.7 · Observatoires</div><h1>Bonjour {user.fullName.split(" ")[0]}</h1><p className="muted">Pilotez le recrutement, observez votre vivier et gardez un œil sur les mouvements du marché de l’emploi.</p></div>
+      <div><div className="eyebrow">V2.7 · TRI INTELLIGENT</div><h1>Bonjour {user.fullName.split(" ")[0]}</h1><p className="muted">Host Talent AI analyse le volume automatiquement et concentre votre attention sur les candidatures qui méritent réellement une revue humaine.</p></div>
       <div className="heroActions"><Link className="btn" href="/jobs/new">Créer une mission</Link><Link className="btn secondary" href="/market">Observatoire général</Link><Link className="btn secondary" href="/talent">Observatoire Talent</Link><RecomputeAllButton/></div>
     </section>
 
     <section className="kpiRow">
-      <div className="kpiCard"><span>Missions</span><strong>{jobCount}</strong><small>actives et enregistrées</small></div>
-      <div className="kpiCard"><span>Candidats</span><strong>{candidateCount}</strong><small>dans le vivier</small></div>
+      <div className="kpiCard"><span>Matchings analysés</span><strong>{summary.analyzed}</strong><small>analysés automatiquement</small></div>
+      <div className="kpiCard"><span>Adéquations pertinentes</span><strong>{newSummary.relevant}</strong><small>score ≥ 60, hors pipeline</small></div>
+      <div className="kpiCard"><span>Candidats prioritaires</span><strong>{newSummary.priorityCandidates}</strong><small>uniques, score ≥ 75</small></div>
+      <div className="kpiCard"><span>À valider humainement</span><strong>{newSummary.validationCandidates}</strong><small>uniques, avec points à confirmer</small></div>
       <div className="kpiCard"><span>Profils en process</span><strong>{shortlisted}</strong><small>short-list et étapes suivantes</small></div>
-      <div className="kpiCard"><span>Actions à venir</span><strong>{dueActions}</strong><small>dans les 7 prochains jours</small></div>
-      <div className="kpiCard"><span>Relances en retard</span><strong>{overdueActions}</strong><small>à traiter</small></div>
     </section>
 
-    <HorizontalBars title="Répartition du pipeline" description="Vue instantanée des matchings par étape. Elle aide à repérer les concentrations et les étapes qui demandent une action." items={pipelineChart}/>
+    <HorizontalBars title="Entonnoir de tri automatique" description="Les milliers de matchings ne sont plus une liste de travail manuelle : le moteur réduit progressivement le volume jusqu’aux candidats réellement utiles à examiner." items={funnel}/>
 
-    <section className="dashboardGrid">
+    <section className="card sectionCard"><div className="sectionHeader"><div><div className="eyebrow">REVUE HUMAINE CIBLÉE</div><h2>À examiner en priorité</h2><p className="muted">Un seul meilleur matching est remonté par candidat. Aucun profil n’est déplacé automatiquement dans le pipeline.</p></div></div>
+      {reviewQueue.length===0?<p className="muted">Aucun cas prioritaire à revoir pour le moment.</p>:reviewQueue.map(({match:m,priority})=><div className="reviewQueueRow" key={m.id}>
+        <div className="reviewQueueMain"><Link href={`/candidates/${m.candidate.id}`}><strong>{m.candidate.fullName}</strong></Link><span>{m.job.title}</span><small>{priority.reason}</small></div>
+        <div className="reviewQueueMeta"><span className="scoreMini">{m.score}/100</span><span className={priority.needsValidation?"reviewBadge warning":"reviewBadge success"}>{priority.needsValidation?"Validation requise":"Prioritaire"}</span></div>
+        <div className="reviewQueueAction"><Link className="btn secondary" href={`/jobs/${m.job.id}`}>Examiner dans la mission</Link></div>
+      </div>)}
+    </section>
+
+    <section className="dashboardGrid" style={{marginTop:22}}>
       <div className="card intelligenceCard"><div className="sectionHeader"><div><div className="eyebrow">Observatoires</div><h2>Deux niveaux de lecture</h2></div></div>
         <div className="intelligenceList">
           <Link href="/market" className="featureTile"><strong>Observatoire général</strong><span>Tendances de l’emploi, signaux macro et pistes de nouveaux marchés pour le cabinet.</span><em>Observer le marché externe →</em></Link>
           <Link href="/talent" className="featureTile"><strong>Observatoire Talent</strong><span>Demande des missions, offre brute, offre qualifiée, tensions et potentiel sous-exploité du vivier.</span><em>Observer le marché du cabinet →</em></Link>
           <Link href="/experience" className="featureTile"><strong>Expérience candidat</strong><span>Retours, signaux faibles et qualité perçue du parcours.</span><em>{surveyResponseCount} retour(s) reçu(s) →</em></Link>
-          <Link href="/audit" className="featureTile"><strong>Audit & Actions</strong><span>Friction, causes probables et plans d’action recommandés.</span><em>Lancer un audit →</em></Link>
         </div>
       </div>
 
@@ -57,11 +85,12 @@ export default async function Dashboard(){
         {recentJobs.length===0?<p className="muted">Aucune mission récente.</p>:recentJobs.map(j=>{const best=j.matches.length?Math.max(...j.matches.map(m=>m.score)):null;return <div className="listRow" key={j.id}><div><Link href={`/jobs/${j.id}`}><strong>{j.title}</strong></Link><div className="muted small">{best==null?"Pas encore analysée":`Meilleur score ${best}/100`}</div></div><span>→</span></div>})}
       </div>
 
-      <div className="card"><div className="sectionHeader"><div><div className="eyebrow">Suivi</div><h2>Priorités du moment</h2></div><Link href="/actions">Centre d’actions →</Link></div>
-        {activePipeline.length===0?<p className="muted">Aucun profil en suivi pour le moment.</p>:activePipeline.map(m=>{const planned=m.activities[0];return <div className="listRow" key={m.id}><div><Link href={`/candidates/${m.candidateId}`}><strong>{m.candidate.fullName}</strong></Link><div className="muted small">{m.job.title} · {stageLabel(m.stage)}{planned?` · ${planned.subject||planned.type}`:m.nextAction?` · ${m.nextAction}`:""}</div></div><span className="scoreMini">{m.score}</span></div>})}
+      <div className="card"><div className="sectionHeader"><div><div className="eyebrow">Suivi</div><h2>Priorités opérationnelles</h2></div><Link href="/actions">Centre d’actions →</Link></div>
+        <div className="listRow"><span>Actions à venir ≤ 7 jours</span><strong>{dueActions}</strong></div><div className="listRow"><span>Relances en retard</span><strong>{overdueActions}</strong></div>
+        {activePipeline.slice(0,3).map(m=>{const planned=m.activities[0];return <div className="listRow" key={m.id}><div><Link href={`/candidates/${m.candidateId}`}><strong>{m.candidate.fullName}</strong></Link><div className="muted small">{m.job.title} · {stageLabel(m.stage)}{planned?` · ${planned.subject||planned.type}`:m.nextAction?` · ${m.nextAction}`:""}</div></div><span className="scoreMini">{m.score}</span></div>})}
       </div>
     </section>
 
-    <section className="workflowStrip"><div><strong>Observer</strong><span>Marché général et vivier interne</span></div><b>→</b><div><strong>Diagnostiquer</strong><span>Tensions, écarts et frictions</span></div><b>→</b><div><strong>Agir</strong><span>Sourcing et actions au bon moment</span></div><b>→</b><div><strong>Améliorer</strong><span>Qualité et performance</span></div></section>
+    <section className="workflowStrip"><div><strong>Analyser</strong><span>Tous les matchings automatiquement</span></div><b>→</b><div><strong>Prioriser</strong><span>Scores, preuves et points à confirmer</span></div><b>→</b><div><strong>Valider</strong><span>L’humain examine seulement les cas utiles</span></div><b>→</b><div><strong>Agir</strong><span>Short-list et pipeline restent humains</span></div></section>
   </>;
 }
