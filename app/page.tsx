@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "./lib/db";
-import { stageLabel } from "./lib/pipeline";
+import { PIPELINE_STAGES, stageLabel } from "./lib/pipeline";
 import { requireUser } from "./lib/auth";
 import RecomputeAllButton from "./RecomputeAllButton";
+import {HorizontalBars} from "./components/InsightCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export default async function Dashboard(){
   const organizationId=user.organizationId;
   const now=new Date();
   const d7=new Date(now.getTime()+7*86400000);
-  const [jobCount,candidateCount,shortlisted,surveyResponseCount,dueActions,overdueActions,recentJobs,activePipeline]=await Promise.all([
+  const [jobCount,candidateCount,shortlisted,surveyResponseCount,dueActions,overdueActions,recentJobs,activePipeline,stageMatches]=await Promise.all([
     prisma.job.count({where:{organizationId}}),
     prisma.candidate.count({where:{organizationId}}),
     prisma.match.count({where:{organizationId,stage:{in:["SHORTLIST","CONTACTED","INTERVIEW","CLIENT","OFFER","HIRED"]}}}),
@@ -19,8 +20,12 @@ export default async function Dashboard(){
     prisma.candidateActivity.count({where:{organizationId,status:"PLANNED",dueAt:{gte:now,lte:d7}}}),
     prisma.candidateActivity.count({where:{organizationId,status:"PLANNED",dueAt:{lt:now}}}),
     prisma.job.findMany({where:{organizationId},take:4,orderBy:{createdAt:"desc"},include:{matches:{where:{organizationId},select:{score:true}}}}),
-    prisma.match.findMany({where:{organizationId,stage:{not:"NEW"}},take:5,orderBy:{updatedAt:"desc"},include:{candidate:true,job:true,activities:{where:{status:"PLANNED"},orderBy:{dueAt:"asc"},take:1}}})
+    prisma.match.findMany({where:{organizationId,stage:{not:"NEW"}},take:5,orderBy:{updatedAt:"desc"},include:{candidate:true,job:true,activities:{where:{status:"PLANNED"},orderBy:{dueAt:"asc"},take:1}}}),
+    prisma.match.findMany({where:{organizationId},select:{stage:true}})
   ]);
+  const stageCounts=new Map<string,number>();
+  for(const m of stageMatches)stageCounts.set(m.stage,(stageCounts.get(m.stage)||0)+1);
+  const pipelineChart=PIPELINE_STAGES.filter(s=>s.value!=="REJECTED").map(s=>({label:s.label,value:stageCounts.get(s.value)||0,meta:s.value==="NEW"?"Profils à examiner":"Profils dans cette étape"}));
 
   return <>
     <section className="dashboardHero">
@@ -35,6 +40,8 @@ export default async function Dashboard(){
       <div className="kpiCard"><span>Actions à venir</span><strong>{dueActions}</strong><small>dans les 7 prochains jours</small></div>
       <div className="kpiCard"><span>Relances en retard</span><strong>{overdueActions}</strong><small>à traiter</small></div>
     </section>
+
+    <HorizontalBars title="Répartition du pipeline" description="Vue instantanée des matchings par étape. Elle aide à repérer les concentrations et les étapes qui demandent une action." items={pipelineChart}/>
 
     <section className="dashboardGrid">
       <div className="card intelligenceCard"><div className="sectionHeader"><div><div className="eyebrow">Observatoires</div><h2>Deux niveaux de lecture</h2></div></div>
