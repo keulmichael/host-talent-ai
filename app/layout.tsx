@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./theme.css";
 import Link from "next/link";
 import { getCurrentSession } from "./lib/auth";
 import LogoutButton from "./LogoutButton";
@@ -15,7 +16,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return <html lang="fr"><body>
     {user ? <div className="appFrame">
       <aside className="sidebar">
-        <div className="sidebarBrand"><Link className="brand" href="/">HOST TALENT AI</Link><span>V2.7 · Observatoires</span></div>
+        <div className="sidebarBrand"><Link className="brand" href="/">HOST TALENT AI</Link><span>L’IA au service de vos recrutements</span></div>
         <nav className="sideNav">
           <NavLink href="/">Tableau de bord</NavLink>
           <div className="navGroup"><div className="navLabel">Recrutement</div><NavLink href="/jobs">Missions</NavLink><NavLink href="/pipeline">Pipeline</NavLink><NavLink href="/actions">Actions</NavLink></div>
