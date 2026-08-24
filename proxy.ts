@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const COOKIE = "host_talent_session";
-const PUBLIC_PATHS = new Set(["/login", "/setup", "/api/auth/login", "/api/auth/setup", "/api/auth/logout"]);
+const PUBLIC_PATHS = new Set(["/login", "/setup", "/api/auth/login", "/api/auth/setup", "/api/auth/logout", "/api/auth/demo"]);
 
 export function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
