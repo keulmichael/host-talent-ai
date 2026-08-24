@@ -13,6 +13,7 @@ function NavLink({href,children}:{href:string;children:React.ReactNode}){
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const session = await getCurrentSession();
   const user = session?.user;
+  const demoMode=Boolean(user?.organizationId?.startsWith("demo-"));
   return <html lang="fr"><body>
     {user ? <div className="appFrame">
       <aside className="sidebar">
@@ -26,7 +27,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
         </nav>
         <div className="sidebarUser"><Link href="/account"><strong>{user.fullName}</strong><span>{user.organization.name}</span></Link><LogoutButton /></div>
       </aside>
-      <main className="mainArea"><div className="contentShell">{children}<footer className="footer">Host Talent AI assiste la revue des candidatures. Les décisions de recrutement restent humaines.</footer></div></main>
+      <main className="mainArea">{demoMode&&<div style={{background:"linear-gradient(90deg,#eef2ff,#f5f3ff)",borderBottom:"1px solid #d8d8ff",padding:"10px 22px",fontSize:14}}><strong>Mode démonstration</strong> · Cet espace est temporaire et contient uniquement des missions et candidats fictifs. Vous pouvez le tester librement sans affecter les données d’un autre cabinet.</div>}<div className="contentShell">{children}<footer className="footer">Host Talent AI assiste la revue des candidatures. Les décisions de recrutement restent humaines.</footer></div></main>
     </div> : <div className="shell">{children}</div>}
   </body></html>;
 }
