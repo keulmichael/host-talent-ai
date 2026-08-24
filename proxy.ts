@@ -5,10 +5,18 @@ const PUBLIC_PATHS = new Set(["/login", "/setup", "/api/auth/login", "/api/auth/
 
 export function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  if (PUBLIC_PATHS.has(path) || path.startsWith("/candidate-experience/") || path.startsWith("/api/public/experience/")) return NextResponse.next();
+  const isPublicCandidateRoute =
+    path.startsWith("/candidate-experience/") ||
+    path.startsWith("/api/public/experience/") ||
+    path.startsWith("/prequalification/") ||
+    path.startsWith("/api/prequalify/");
+
+  if (PUBLIC_PATHS.has(path) || isPublicCandidateRoute) return NextResponse.next();
+
   const token = req.cookies.get(COOKIE)?.value;
   if (token) return NextResponse.next();
   if (path.startsWith("/api/")) return NextResponse.json({ error: "Authentification requise" }, { status: 401 });
+
   const url = new URL("/login", req.url);
   url.searchParams.set("next", path);
   return NextResponse.redirect(url);
