@@ -10,6 +10,7 @@ import CommercialPrequalButton from "../../CommercialPrequalButton";
 import RelationshipPanel from "../../RelationshipPanel";
 import DeleteCandidateButton from "../../DeleteCandidateButton";
 import CandidateAiAnalysis from "../../CandidateAiAnalysis";
+import MatchAiAnalysis from "../../MatchAiAnalysis";
 
 export const dynamic = "force-dynamic";
 function band(score:number){return score>=85?"Très forte adéquation":score>=70?"Bonne adéquation":score>=55?"Adéquation partielle":score>=40?"Profil à approfondir":"Faible adéquation apparente"}
@@ -40,6 +41,7 @@ export default async function CandidateDetail({params}:{params:Promise<{id:strin
    <div className="sectionHeader"><div><Link href={`/jobs/${m.job.id}`}><strong>{m.job.title}</strong></Link><div className="muted small">{m.job.clientName||"Client non renseigné"} · {band(m.score)} · {stageLabel(m.stage)}</div></div><div className="scoreCompact">{m.score}/100</div></div>
    <p><strong>Correspondances :</strong> {m.matched||"—"}</p>{m.missing&&<p><strong>À vérifier :</strong> {m.missing}</p>}
    {m.questions&&<><strong>Questions suggérées</strong><ul>{m.questions.split("\n").filter(Boolean).map(q=><li key={q}>{q}</li>)}</ul></>}
+   <MatchAiAnalysis matchId={m.id} deterministicScore={m.score}/>
    <details className="opsDetails"><summary>Automatisation relationnelle</summary><RelationshipPanel matchId={m.id} candidateId={candidate.id} input={input} activities={activityData} templates={templates} recruiterName={user.fullName}/></details>
    <details className="opsDetails"><summary>Suivi recruteur et préqualification</summary><MatchActions id={m.id} stage={m.stage} recruiterNote={m.recruiterNote} nextAction={m.nextAction} candidateInterest={m.candidateInterest}/><CandidateCommercial candidateId={candidate.id} availability={candidate.availability} dailyRate={candidate.dailyRate} salaryExpectation={candidate.salaryExpectation}/><CommercialPrequalButton candidateId={candidate.id} eligible={prequalificationEligible}/></details>
    <details className="opsDetails"><summary>Analyse détaillée</summary><p className="muted">{m.explanation}</p></details>
