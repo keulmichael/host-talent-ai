@@ -26,6 +26,23 @@ export type JobAiAnalysis = {
   questionsToConfirm: string[];
 };
 
+export type MissionFitCriterion = {
+  criterion: string;
+  importance: "must" | "should" | "optional";
+  status: "explicit" | "probable" | "unconfirmed" | "contradicted";
+  confidence: number | null;
+  evidence: string;
+};
+
+export type MissionFitAnalysis = {
+  summary: string;
+  fitSignals: string[];
+  watchPoints: string[];
+  criteria: MissionFitCriterion[];
+  interviewQuestions: string[];
+  recruiterConclusion: string;
+};
+
 export type AiResult<T> = {
   enabled: boolean;
   source: "llm" | "disabled";
