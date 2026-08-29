@@ -1,0 +1,38 @@
+.sidebar{
+  overflow:hidden;
+  min-height:0;
+}
+
+.sideNav{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-right:6px;
+  padding-bottom:18px;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(159,176,196,.45) transparent;
+}
+
+.sideNav::-webkit-scrollbar{
+  width:6px;
+}
+
+.sideNav::-webkit-scrollbar-track{
+  background:transparent;
+}
+
+.sideNav::-webkit-scrollbar-thumb{
+  background:rgba(159,176,196,.35);
+  border-radius:999px;
+}
+
+.sideNav::-webkit-scrollbar-thumb:hover{
+  background:rgba(159,176,196,.55);
+}
+
+.sidebarUser{
+  flex:0 0 auto;
+  margin-top:0;
+  background:#091524;
+}
