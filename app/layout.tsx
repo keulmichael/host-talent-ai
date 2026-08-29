@@ -1,5 +1,6 @@
 import "./globals.css";
 import "./theme.css";
+import "./sidebar-fix.css";
 import Link from "next/link";
 import { getCurrentSession } from "./lib/auth";
 import {prisma} from "./lib/db";
