@@ -14,9 +14,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Identifiants incorrects." }, { status: 401 });
     }
 
-    await prisma.session.deleteMany({ where: { userId: user.id, expiresAt: { lt: new Date() } } });
-    const session = await createSession(user.id);
-    await audit({ organizationId: user.organizationId, userId: user.id, action: "LOGIN", entityType: "User", entityId: user.id });
+    const [session] = await Promise.all([
+      createSession(user.id),
+      prisma.session.deleteMany({ where: { userId: user.id, expiresAt: { lt: new Date() } } }),
+      audit({ organizationId: user.organizationId, userId: user.id, action: "LOGIN", entityType: "User", entityId: user.id }),
+    ]);
 
     const response = NextResponse.json({ ok: true, user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role } });
     response.cookies.set(SESSION_COOKIE, session.token, {
