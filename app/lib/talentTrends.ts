@@ -5,17 +5,36 @@ type TalentCandidate={id:string;skills:string;rawText?:string;experienceYears:nu
 
 const STOP=new Set(["ans","annees","experience","minimum","requis","souhaite","souhaitable","maitrise","bonne","connaissance","professionnel","niveau","expertise","profil","poste","mission","avec","pour","dans","des","les","une","sur","and","the"]);
 function norm(s:string){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9+#.\-/ ]/g," ").replace(/\s+/g," ").trim()}
+
+// Normalisation légère : elle rapproche les variantes évidentes sans enfermer
+// l'Observatoire Talent dans une liste de secteurs. Les compétences détaillées
+// reconnues par extract.ts restent visibles telles quelles.
 const CANONICAL:[string,string[]][]=[
  ["CRM",["crm","customer relationship management"]],
  ["Marketing Automation",["marketing automation","automation marketing","automatisation marketing","marketing automatise"]],
  ["IA générative / LLM",["ia generative","intelligence artificielle generative","genai","llm","openai","gpt"]],
  ["Automatisation",["automatisation","automation","workflow automatise","n8n","make"]],
- ["Data / BI",["data","business intelligence","power bi","powerbi","tableau","sql"]],
+ ["Data / BI",["business intelligence","power bi","powerbi","tableau","data analysis","analyse de donnees"]],
  ["SEO / GEO",["seo","referencement naturel","geo","generative engine optimization"]],
- ["Cloud / DevOps",["devops","cloud","aws","azure","docker","kubernetes"]],
+ ["Cloud / DevOps",["devops","architecture cloud","cloud computing","aws","azure","docker","kubernetes"]],
  ["Développement web",["javascript","typescript","react","next.js","nextjs","node.js","nodejs","php"]],
- ["RH / Recrutement",["recrutement","recruitment","talent acquisition","ressources humaines","rh"]],
- ["Sales / RevOps",["revops","sales operations","sales ops","business development","commercial"]],
+ ["Recrutement",["recrutement","recruitment","talent acquisition"]],
+ ["Développement commercial",["business development","business developer","developpement commercial"]],
+ ["Comptabilité",["comptabilite generale","comptabilite fournisseurs","comptabilite clients","general ledger","accounts payable","accounts receivable"]],
+ ["Contrôle de gestion / FP&A",["controle de gestion","controleur de gestion","fp&a","financial planning and analysis"]],
+ ["Audit",["audit financier","auditeur financier","auditrice financiere"]],
+ ["Juridique",["droit des affaires","droit des contrats","droit des societes","juriste affaires","juriste contrats","juriste corporate"]],
+ ["Achats / Procurement",["achats directs","achats indirects","procurement","purchasing"]],
+ ["Supply Chain",["supply chain","chaine logistique","supply planning"]],
+ ["Logistique",["logistique","responsable logistique","gestion des stocks","inventory management"]],
+ ["Production / Maintenance",["production industrielle","maintenance industrielle","technicien de maintenance","responsable maintenance"]],
+ ["Qualité / QHSE",["assurance qualite","controle qualite","management de la qualite","qhse","hse"]],
+ ["BTP / Travaux",["conduite de travaux","conducteur de travaux","chef de chantier","gestion de chantier"]],
+ ["Santé / Soins",["soins infirmiers","aide-soignant","aide soignant","auxiliaire de vie","coordination des soins"]],
+ ["Hôtellerie / Restauration",["hotellerie","restauration","chef de rang","receptionniste hotel","chef de cuisine"]],
+ ["Retail",["retail","commerce de detail","responsable de magasin","directeur de magasin"]],
+ ["Gestion de projet",["gestion de projet","project management","pilotage de projet"]],
+ ["Management",["management d equipe","encadrement d equipe","pilotage d equipe"]],
  ["Salesforce",["salesforce"]],
  ["SAP",["sap"]],
  ["Python",["python"]]
@@ -30,8 +49,10 @@ export function buildTalentObservatory(candidates:TalentCandidate[],jobs:TalentJ
  const skillCounts=new Map<string,number>(),demandCounts=new Map<string,number>(),locationCounts=new Map<string,number>();
  const candidateSkills=new Map<string,Set<string>>(),jobSkills=new Map<string,Set<string>>();
  const exp=candidates.map(c=>c.experienceYears).filter((x):x is number=>typeof x==="number");
- for(const c of candidates){const skills=new Set(terms(c.skills||c.rawText||""));candidateSkills.set(c.id,skills);for(const s of skills)skillCounts.set(s,(skillCounts.get(s)||0)+1);if(c.location)locationCounts.set(c.location,(locationCounts.get(c.location)||0)+1)}
- for(const j of jobs){const skills=new Set(terms(`${j.mustHave}\n${j.shouldHave}\n${j.optional||""}`));jobSkills.set(j.id,skills);for(const s of skills)demandCounts.set(s,(demandCounts.get(s)||0)+1)}
+ // Toujours relire le CV brut en plus des compétences déjà structurées : les anciens
+ // imports bénéficient ainsi du référentiel généraliste sans réimport ni migration.
+ for(const c of candidates){const skills=new Set(terms(`${c.skills||""}\n${c.rawText||""}`));candidateSkills.set(c.id,skills);for(const s of skills)skillCounts.set(s,(skillCounts.get(s)||0)+1);if(c.location)locationCounts.set(c.location,(locationCounts.get(c.location)||0)+1)}
+ for(const j of jobs){const skills=new Set(terms(`${j.title}\n${j.mustHave}\n${j.shouldHave}\n${j.optional||""}`));jobSkills.set(j.id,skills);for(const s of skills)demandCounts.set(s,(demandCounts.get(s)||0)+1)}
  const allSkills=Array.from(new Set([...skillCounts.keys(),...demandCounts.keys()]));
  const market=allSkills.map(name=>{
   const demand=demandCounts.get(name)||0, supply=skillCounts.get(name)||0;
@@ -54,5 +75,4 @@ export function buildTalentObservatory(candidates:TalentCandidate[],jobs:TalentJ
  return {candidateCount:candidates.length,jobCount:jobs.length,skillCount:allSkills.length,averageExperience:exp.length?Math.round(exp.reduce((a,b)=>a+b,0)/exp.length*10)/10:null,seniority:{junior:exp.filter(x=>x<3).length,confirmed:exp.filter(x=>x>=3&&x<7).length,senior:exp.filter(x=>x>=7).length,unknown:candidates.length-exp.length},topSkills:top(skillCounts),topLocations:top(locationCounts,8),market,tensions,gaps,underused,strongCandidates:strong,strongRate:candidates.length?Math.round(strong/candidates.length*100):0,matchCoverage:coverage,historyDays,historySufficient,signals:signals.slice(0,6)};
 }
 
-// Compatibilité avec les premiers écrans V2.6.
 export function buildTalentTrends(candidates:TalentCandidate[],jobTexts:string[]){const jobs:TalentJob[]=jobTexts.map((text,i)=>({id:`legacy-${i}`,title:`Mission ${i+1}`,mustHave:text,shouldHave:"",createdAt:new Date()}));return buildTalentObservatory(candidates,jobs)}
